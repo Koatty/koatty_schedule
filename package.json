@@ -1,0 +1,57 @@
+{
+    "name": "think_schedule",
+    "version": "1.0.0",
+    "description": "Schedule for koatty.",
+    "scripts": {
+        "build": "del-cli --force dist && tsc",
+        "prepublishOnly": "npm test && npm run build",
+        "test": "tslint 'src/**/*.ts'"
+    },
+    "main": "./dist/index.js",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/thinkkoa/think_schedule.git"
+    },
+    "keywords": [
+        "validtion",
+        "koatty",
+        "thinkkoa"
+    ],
+    "engines": {
+        "node": ">10.0.0"
+    },
+    "author": {
+        "name": "richenlin",
+        "email": "richenlin@gmail.com"
+    },
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/thinkkoa/think_schedule/issues"
+    },
+    "homepage": "https://github.com/thinkkoa/think_schedule",
+    "devDependencies": {
+        "@types/cron": "^1.x.x",
+        "@types/lodash": "^4.x.x",
+        "@types/node": "^12.x.x",
+        "del-cli": "^3.0.1",
+        "ts-node": "^8.10.2",
+        "tslint": "^6.1.2",
+        "tslint-config-alloy": "^0.2.1",
+        "typescript": "^3.9.6"
+    },
+    "dependencies": {
+        "cron": "^1.8.2",
+        "reflect-metadata": "^0.1.13",
+        "think_container": "^1.x.x",
+        "think_lib": "^2.x.x",
+        "think_logger": "^2.x.x",
+        "think_store": "^3.4.0",
+        "tslib": "^2.0.0"
+    },
+    "maintainers": [
+        {
+            "name": "richenlin",
+            "email": "richenlin@gmail.com"
+        }
+    ]
+}
