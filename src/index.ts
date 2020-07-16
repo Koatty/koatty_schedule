@@ -8,7 +8,7 @@
 import "reflect-metadata";
 import * as helper from "think_lib";
 import logger from "think_logger";
-import { Container, IOCContainer } from "think_container";
+import { Container, IOCContainer } from "koatty_container";
 import { CronJob } from "cron";
 import { Locker } from "./locker";
 import { recursiveGetMetadata } from "./lib";

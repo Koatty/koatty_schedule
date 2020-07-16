@@ -4,7 +4,7 @@
  * @ license: MIT
  * @ version: 2020-07-06 10:29:20
  */
-import { IOCContainer } from 'think_container';
+import { IOCContainer } from "koatty_container";
 
 
 const functionPrototype = Object.getPrototypeOf(Function);
