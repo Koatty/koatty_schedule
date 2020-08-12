@@ -1,63 +1,32 @@
+"use strict";
 /**
  * @ author: richen
  * @ copyright: Copyright (c) - <richenlin(at)gmail.com>
  * @ license: MIT
  * @ version: 2020-06-05 09:40:35
  */
-
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Locker = void 0;
+const tslib_1 = require("tslib");
 const store = require("think_store");
-import * as crypto from "crypto";
-import logger from "think_logger";
-
-interface RedisOptions {
-    key_prefix: string;
-    host: string;
-    port: number;
-    password: string;
-    db: string;
-}
-
+const crypto = tslib_1.__importStar(require("crypto"));
+const think_logger_1 = tslib_1.__importDefault(require("think_logger"));
 /**
  * Wait for a period of time (ms)
  *
  * @param {number} ms
  * @returns
  */
-const delay = function (ms = 1000) {
-    return new Promise((resolve: Function) => setTimeout(() => resolve(), ms));
+const delay = function (ms) {
+    return new Promise((resolve) => setTimeout(() => resolve(), 1000));
 };
-
-export class Locker {
-    lockMap: Map<any, any>;
-    options: any;
-    store: any;
-
-    private static instance: Locker;
-    client: any;
-
-
-    /**
-     * 
-     *
-     * @static
-     * @param {RedisOptions} options
-     * @param {boolean} [force=false]
-     * @returns
-     * @memberof Locker
-     */
-    static getInstance(options: RedisOptions, force = false) {
-        if (!this.instance || force) {
-            this.instance = new Locker(options);
-        }
-        return this.instance;
-    }
-
+class Locker {
     /**
      * Creates an instance of Locker.
      * @param {RedisOptions} options
      * @memberof Locker
      */
-    private constructor(options: RedisOptions) {
+    constructor(options) {
         this.lockMap = new Map();
         this.options = {
             type: "redis",
@@ -71,9 +40,23 @@ export class Locker {
         this.store = store.getInstance(this.options);
         this.client = null;
     }
-
     /**
-     * 
+     *
+     *
+     * @static
+     * @param {RedisOptions} options
+     * @param {boolean} [force=false]
+     * @returns
+     * @memberof Locker
+     */
+    static getInstance(options, force = false) {
+        if (!this.instance || force) {
+            this.instance = new Locker(options);
+        }
+        return this.instance;
+    }
+    /**
+     *
      *
      * @returns
      * @memberof Locker
@@ -94,15 +77,16 @@ export class Locker {
                     else
                         return -1
                     end
-                `});
+                `
+                });
             }
             return this.client;
-        } catch (e) {
-            logger.error(e);
+        }
+        catch (e) {
+            think_logger_1.default.error(e);
             return null;
         }
     }
-
     /**
      * Get a locker.
      *
@@ -111,25 +95,24 @@ export class Locker {
      * @returns
      * @memberof Locker
      */
-    async lock(key: string, expire = 10000): Promise<boolean> {
+    async lock(key, expire = 10000) {
         try {
             const client = await this.defineCommand();
             key = `${this.options.key_prefix}${key}`;
             const value = crypto.randomBytes(16).toString('hex');
             const result = await client.set(key, value, 'NX', 'PX', expire);
             if (result === null) {
-                logger.error('lock error: key already exists');
+                think_logger_1.default.error('lock error: key already exists');
                 return false;
             }
-
             this.lockMap.set(key, { value, expire, time: Date.now() });
             return true;
-        } catch (e) {
-            logger.error(e);
+        }
+        catch (e) {
+            think_logger_1.default.error(e);
             return false;
         }
     }
-
     /**
      * Get a locker.
      * Attempts to lock once every interval time, and fails when return time exceeds waitTime
@@ -141,47 +124,48 @@ export class Locker {
      * @returns
      * @memberof Locker
      */
-    async waitLock(key: string, expire: number, interval = 50, waitTime = 15000): Promise<boolean> {
+    async waitLock(key, expire, interval = 50, waitTime = 15000) {
         try {
             const start_time = Date.now();
             let result;
             while ((Date.now() - start_time) < waitTime) {
-                result = await this.lock(key, expire).catch((err: any) => {
-                    logger.error(err.stack || err.message);
+                result = await this.lock(key, expire).catch((err) => {
+                    think_logger_1.default.error(err.stack || err.message);
                 });
                 if (result) {
                     return true;
-                } else {
+                }
+                else {
                     await delay(interval);
                 }
             }
-            logger.error('waitLock timeout');
+            think_logger_1.default.error('waitLock timeout');
             return false;
-        } catch (e) {
-            logger.error(e);
+        }
+        catch (e) {
+            think_logger_1.default.error(e);
             return false;
         }
     }
-
     /**
      * Release lock.
-     * Regardless of whether the key exists and the unlock is successful, no error will be thrown (except for network reasons). 
-     * 
+     * Regardless of whether the key exists and the unlock is successful, no error will be thrown (except for network reasons).
+     *
      * The specific return value is:
-     * 
+     *
      * null: key does not exist locally
-     * 
+     *
      * 0: key does not exist on redis
-     * 
+     *
      * 1: unlocked successfully
-     * 
+     *
      * -1: value does not correspond and cannot be unlocked
      *
      * @param {*} key
      * @returns
      * @memberof Locker
      */
-    async unLock(key: string) {
+    async unLock(key) {
         try {
             const client = await this.defineCommand();
             key = `${this.options.key_prefix}${key}`;
@@ -192,9 +176,12 @@ export class Locker {
             await client.lua_unlock(key, value);
             this.lockMap.delete(key);
             return true;
-        } catch (e) {
-            logger.error(e);
+        }
+        catch (e) {
+            think_logger_1.default.error(e);
             return false;
         }
     }
 }
+exports.Locker = Locker;
+//# sourceMappingURL=locker.js.map
