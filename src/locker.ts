@@ -8,13 +8,17 @@
 const store = require("think_store");
 import * as crypto from "crypto";
 import logger from "think_logger";
+import { getHeapStatistics } from "v8";
 
-interface RedisOptions {
+export interface RedisOptions {
     key_prefix: string;
     host: string;
     port: number;
-    password: string;
-    db: string;
+    password?: string;
+    db?: string;
+    timeout?: number;
+    poolsize?: number;
+    conn_timeout?: number;
 }
 
 /**
@@ -30,7 +34,6 @@ const delay = function (ms = 1000) {
 export class Locker {
     lockMap: Map<any, any>;
     options: any;
-    store: any;
 
     private static instance: Locker;
     client: any;
@@ -68,7 +71,7 @@ export class Locker {
             db: options.db || '2',
             conn_timeout: 1000
         };
-        this.store = store.getInstance(this.options);
+
         this.client = null;
     }
 
@@ -80,11 +83,14 @@ export class Locker {
      */
     async defineCommand() {
         try {
-            if (!this.client || !this.client.lua_unlock) {
+            if (!this.client || this.client.status !== 'ready') {
                 //Lua scripts execute atomically
-                this.client = await this.store.command('lua_unlock', {
-                    numberOfKeys: 1,
-                    lua: `
+                const redisStore = store.getInstance(this.options);
+                this.client = await redisStore.connect(redisStore.options, 3);
+                if (this.client && !this.client.lua_unlock) {
+                    this.client.defineCommand('lua_unlock', {
+                        numberOfKeys: 1,
+                        lua: `
                     local remote_value = redis.call("get",KEYS[1])
                     
                     if (not remote_value) then
@@ -95,10 +101,11 @@ export class Locker {
                         return -1
                     end
                 `});
+                }
             }
             return this.client;
         } catch (e) {
-            logger.error(e);
+            logger.error(`Redis connection failed. at ScheduleLocker.InitRedisConn. ${e.message}`);
             return null;
         }
     }
@@ -181,7 +188,7 @@ export class Locker {
      * @returns
      * @memberof Locker
      */
-    async unLock(key: string) {
+    async unLock(key: string): Promise<boolean> {
         try {
             const client = await this.defineCommand();
             key = `${this.options.key_prefix}${key}`;

@@ -41,8 +41,9 @@
     },
     "dependencies": {
         "cron": "^1.8.2",
-        "reflect-metadata": "^0.1.13",
+        "koatty": "^2.5.12",
         "koatty_container": "^1.1.2",
+        "reflect-metadata": "^0.1.13",
         "think_lib": "^2.x.x",
         "think_logger": "^2.x.x",
         "think_store": "^3.4.0",

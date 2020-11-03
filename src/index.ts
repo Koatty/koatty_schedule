@@ -6,14 +6,76 @@
  */
 // tslint:disable-next-line: no-import-side-effect
 import "reflect-metadata";
-import * as helper from "think_lib";
-import logger from "think_logger";
-import { Container, IOCContainer } from "koatty_container";
 import { CronJob } from "cron";
-import { Locker } from "./locker";
+import logger from "think_logger";
+import * as helper from "think_lib";
+import { Application, Container, IOCContainer, TAGGED_CLS } from "koatty_container";
 import { recursiveGetMetadata } from "./lib";
+import { Locker, RedisOptions } from "./locker";
 
 const SCHEDULE_KEY = 'SCHEDULE_KEY';
+const APP_READY_HOOK = "APP_READY_HOOK";
+
+/**
+ * 
+ *
+ * @interface CacheStoreInterface
+ */
+interface ScheduleLockerInterface {
+    locker?: LockerInterface;
+}
+interface LockerInterface {
+    defineCommand?: () => Promise<any>;
+    lock?: (key: string, expire?: number) => Promise<boolean>;
+    waitLock?: (key: string, expire: number, interval?: number, waitTime?: number) => Promise<boolean>;
+    unLock?: (key: string) => Promise<boolean>;
+}
+// 
+const ScheduleLocker: ScheduleLockerInterface = {
+    locker: null,
+};
+
+/**
+ * initiation redis connection and client.
+ *
+ * @param {Application} app
+ * @returns {*}  {Promise<LockerInterface>}
+ */
+async function InitRedisConn(app: Application): Promise<LockerInterface> {
+    if (!ScheduleLocker.locker) {
+        const opt = app.config("SchedulerLock", "db") || app.config("redis", "db");
+        if (helper.isEmpty(opt)) {
+            throw Error("Missing redis server configuration. Please write a configuration item with the key name 'SchedulerLock' or 'redis' in the db.ts file.");
+        } else {
+            const lockerStore = Locker.getInstance(opt);
+            if (lockerStore && helper.isFunction(lockerStore.defineCommand)) {
+                await lockerStore.defineCommand();
+                ScheduleLocker.locker = lockerStore;
+            } else {
+                throw Error(`Redis connection failed. `);
+            }
+        }
+    }
+
+    return ScheduleLocker.locker;
+}
+
+/**
+ * Enable scheduled lock support and initialize redis connection.
+ * Need configuration item with the key name 'SchedulerLock' or 'redis' in the db.ts file
+ * @export
+ * @returns {*} 
+ */
+export function EnableScheduleLock(): ClassDecorator {
+    logger.custom('think', '', 'EnableScheduleLock');
+
+    return (target: any) => {
+        if (!(target.__proto__.name === "Koatty")) {
+            throw new Error(`class does not inherit from Koatty`);
+        }
+        IOCContainer.attachClassMetadata(TAGGED_CLS, APP_READY_HOOK, InitRedisConn, target);
+    };
+}
 
 /**
  * Schedule task
@@ -36,6 +98,10 @@ export function Scheduled(cron: string): MethodDecorator {
     }
 
     return (target, propertyKey: string, descriptor: PropertyDescriptor) => {
+        const componentType = IOCContainer.getType(target);
+        if (componentType !== "SERVICE" && componentType !== "COMPONENT") {
+            throw Error("This decorator only used in the service、component class.");
+        }
         IOCContainer.attachPropertyData(SCHEDULE_KEY, {
             cron,
             method: propertyKey
@@ -44,7 +110,7 @@ export function Scheduled(cron: string): MethodDecorator {
 }
 
 /**
- * Redis-based distributed locks. Reids server config from db.ts.
+ * Redis-based distributed locks. Redis server config from db.ts.
  *
  * @export
  * @param {string} [name] The locker name. If name is duplicated, lock sharing contention will result.
@@ -57,8 +123,8 @@ export function Scheduled(cron: string): MethodDecorator {
 export function SchedulerLock(name?: string, lockTimeOut?: number, waitLockInterval?: number, waitLockTimeOut?: number): MethodDecorator {
     return (target: any, methodName: string, descriptor: PropertyDescriptor) => {
         const componentType = IOCContainer.getType(target);
-        if (componentType === "CONTROLLER") {
-            throw Error("SchedulerLock decorator cannot be used in the controller class.");
+        if (componentType !== "SERVICE" && componentType !== "COMPONENT") {
+            throw Error("This decorator only used in the service、component class.");
         }
         const { value, configurable, enumerable } = descriptor;
         if (helper.isEmpty(name)) {
@@ -70,15 +136,10 @@ export function SchedulerLock(name?: string, lockTimeOut?: number, waitLockInter
             enumerable,
             writable: true,
             async value(...props: any[]) {
-                // tslint:disable-next-line: no-invalid-this
-                const redisOptions = this.app.config("SchedulerLock", "db") || this.app.config("redis", "db");
-                if (helper.isEmpty(redisOptions)) {
-                    throw Error("Missing redis server configuration. Please write a configuration item with the key name 'SchedulerLock' or 'redis' in the db.ts file.");
-                }
-                const lockerCls = Locker.getInstance(redisOptions);
+                const lockerCls = ScheduleLocker.locker;
                 let lockerFlag = false;
                 if (!lockerCls) {
-                    throw Error(`Redis connection failed. The method ${methodName} is not executed.`);
+                    throw Error(`Redis lock ${name} acquisition failed. The method ${methodName} is not executed.`);
                 }
                 if (waitLockInterval || waitLockTimeOut) {
                     lockerFlag = await lockerCls.waitLock(name,
@@ -121,7 +182,7 @@ export function SchedulerLock(name?: string, lockTimeOut?: number, waitLockInter
 }
 
 /**
- * Redis-based distributed locks. Reids server config from db.ts.
+ * Redis-based distributed locks. Redis server config from db.ts.
  *
  * @export
  * @param {string} [name] The locker name. If name is duplicated, lock sharing contention will result.
@@ -143,8 +204,7 @@ export const Lock = SchedulerLock;
  */
 const execInjectSchedule = function (target: any, container: Container, method: string, cron: string) {
     const app = container.getApp();
-    // tslint:disable-next-line: no-unused-expression
-    app && app.once("appStart", () => {
+    app.once("appReady", () => {
         const identifier = IOCContainer.getIdentifier(target);
         const instance: any = container.getInsByClass(target);
         const name = `${identifier}_${method}`;
