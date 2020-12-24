@@ -7,11 +7,11 @@
 // tslint:disable-next-line: no-import-side-effect
 import "reflect-metadata";
 import { CronJob } from "cron";
-import logger from "think_logger";
-import * as helper from "think_lib";
+import * as helper from "koatty_lib";
+import { DefaultLogger as logger } from "koatty_logger";
 import { Application, Container, IOCContainer, TAGGED_CLS } from "koatty_container";
+import { Locker } from "./locker";
 import { recursiveGetMetadata } from "./lib";
-import { Locker, RedisOptions } from "./locker";
 
 const SCHEDULE_KEY = 'SCHEDULE_KEY';
 const APP_READY_HOOK = "APP_READY_HOOK";
@@ -67,7 +67,7 @@ async function InitRedisConn(app: Application): Promise<LockerInterface> {
  * @returns {*} 
  */
 export function EnableScheduleLock(): ClassDecorator {
-    logger.custom('think', '', 'EnableScheduleLock');
+    logger.Custom('think', '', 'EnableScheduleLock');
 
     return (target: any) => {
         if (!(target.__proto__.name === "Koatty")) {
@@ -147,18 +147,18 @@ export function SchedulerLock(name?: string, lockTimeOut?: number, waitLockInter
                         waitLockInterval,
                         waitLockTimeOut
                     ).catch((er: any) => {
-                        logger.error(er);
+                        logger.Error(er);
                         return false;
                     });
                 } else {
                     lockerFlag = await lockerCls.lock(name, lockTimeOut).catch((er: any) => {
-                        logger.error(er);
+                        logger.Error(er);
                         return false;
                     });
                 }
                 if (lockerFlag) {
                     try {
-                        logger.info(`The locker ${name} executed.`);
+                        logger.Info(`The locker ${name} executed.`);
                         // tslint:disable-next-line: no-invalid-this
                         const res = await value.apply(this, props);
                         return res;
@@ -167,12 +167,12 @@ export function SchedulerLock(name?: string, lockTimeOut?: number, waitLockInter
                     } finally {
                         if (lockerCls.unLock) {
                             await lockerCls.unLock(name).catch((er: any) => {
-                                logger.error(er);
+                                logger.Error(er);
                             });
                         }
                     }
                 } else {
-                    logger.warn(`Redis lock ${name} acquisition failed. The method ${methodName} is not executed.`);
+                    logger.Warn(`Redis lock ${name} acquisition failed. The method ${methodName} is not executed.`);
                     return;
                 }
             }
@@ -204,21 +204,21 @@ export const Lock = SchedulerLock;
  */
 const execInjectSchedule = function (target: any, container: Container, method: string, cron: string) {
     const app = container.getApp();
-    app.once("appReady", () => {
+    app.once("appStart", () => {
         const identifier = IOCContainer.getIdentifier(target);
         const instance: any = container.getInsByClass(target);
         const name = `${identifier}_${method}`;
 
         if (instance && helper.isFunction(instance[method]) && cron) {
             // tslint:disable-next-line: no-unused-expression
-            process.env.APP_DEBUG && logger.custom("think", "", `Register inject ${identifier} schedule key: ${method} => value: ${cron}`);
+            process.env.APP_DEBUG && logger.Custom("think", "", `Register inject ${identifier} schedule key: ${method} => value: ${cron}`);
             new CronJob(cron, async function () {
-                logger.info(`The schedule job ${name} started.`);
+                logger.Info(`The schedule job ${name} started.`);
                 try {
                     const res = await instance[method]();
                     return res;
                 } catch (e) {
-                    logger.error(e);
+                    logger.Error(e);
                 }
             }).start();
         }

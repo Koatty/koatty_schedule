@@ -4,22 +4,9 @@
  * @ license: MIT
  * @ version: 2020-06-05 09:40:35
  */
-
-const store = require("think_store");
 import * as crypto from "crypto";
-import logger from "think_logger";
-import { getHeapStatistics } from "v8";
-
-export interface RedisOptions {
-    key_prefix: string;
-    host: string;
-    port: number;
-    password?: string;
-    db?: string;
-    timeout?: number;
-    poolsize?: number;
-    conn_timeout?: number;
-}
+import { Store, RedisStore } from "koatty_store";
+import { DefaultLogger as logger } from "koatty_logger";
 
 /**
  * Wait for a period of time (ms)
@@ -43,12 +30,12 @@ export class Locker {
      * 
      *
      * @static
-     * @param {RedisOptions} options
+     * @param {RedisStore} options
      * @param {boolean} [force=false]
      * @returns
      * @memberof Locker
      */
-    static getInstance(options: RedisOptions, force = false) {
+    static getInstance(options: RedisStore, force = false) {
         if (!this.instance || force) {
             this.instance = new Locker(options);
         }
@@ -57,20 +44,12 @@ export class Locker {
 
     /**
      * Creates an instance of Locker.
-     * @param {RedisOptions} options
+     * @param {RedisStore} options
      * @memberof Locker
      */
-    private constructor(options: RedisOptions) {
+    private constructor(options: RedisStore) {
         this.lockMap = new Map();
-        this.options = {
-            type: "redis",
-            key_prefix: options.key_prefix || '',
-            host: options.host || '127.0.0.1',
-            port: options.port || 6379,
-            password: options.password || '',
-            db: options.db || '2',
-            conn_timeout: 1000
-        };
+        this.options = options;
 
         this.client = null;
     }
@@ -85,27 +64,27 @@ export class Locker {
         try {
             if (!this.client || this.client.status !== 'ready') {
                 //Lua scripts execute atomically
-                const redisStore = store.getInstance(this.options);
-                this.client = await redisStore.connect(redisStore.options, 3);
+                const redisStore = Store.getInstance(this.options);
+                this.client = await redisStore.connect(3);
                 if (this.client && !this.client.lua_unlock) {
                     this.client.defineCommand('lua_unlock', {
                         numberOfKeys: 1,
                         lua: `
-                    local remote_value = redis.call("get",KEYS[1])
-                    
-                    if (not remote_value) then
-                        return 0
-                    elseif (remote_value == ARGV[1]) then
-                        return redis.call("del",KEYS[1])
-                    else
-                        return -1
-                    end
+                            local remote_value = redis.call("get",KEYS[1])
+                            
+                            if (not remote_value) then
+                                return 0
+                            elseif (remote_value == ARGV[1]) then
+                                return redis.call("del",KEYS[1])
+                            else
+                                return -1
+                            end
                 `});
                 }
             }
             return this.client;
         } catch (e) {
-            logger.error(`Redis connection failed. at ScheduleLocker.InitRedisConn. ${e.message}`);
+            logger.Error(`Redis connection failed. at ScheduleLocker.InitRedisConn. ${e.message}`);
             return null;
         }
     }
@@ -125,14 +104,14 @@ export class Locker {
             const value = crypto.randomBytes(16).toString('hex');
             const result = await client.set(key, value, 'NX', 'PX', expire);
             if (result === null) {
-                logger.error('lock error: key already exists');
+                logger.Error('lock error: key already exists');
                 return false;
             }
 
             this.lockMap.set(key, { value, expire, time: Date.now() });
             return true;
         } catch (e) {
-            logger.error(e);
+            logger.Error(e);
             return false;
         }
     }
@@ -154,7 +133,7 @@ export class Locker {
             let result;
             while ((Date.now() - start_time) < waitTime) {
                 result = await this.lock(key, expire).catch((err: any) => {
-                    logger.error(err.stack || err.message);
+                    logger.Error(err.stack || err.message);
                 });
                 if (result) {
                     return true;
@@ -162,10 +141,10 @@ export class Locker {
                     await delay(interval);
                 }
             }
-            logger.error('waitLock timeout');
+            logger.Error('waitLock timeout');
             return false;
         } catch (e) {
-            logger.error(e);
+            logger.Error(e);
             return false;
         }
     }
@@ -200,7 +179,7 @@ export class Locker {
             this.lockMap.delete(key);
             return true;
         } catch (e) {
-            logger.error(e);
+            logger.Error(e);
             return false;
         }
     }
