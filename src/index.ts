@@ -102,10 +102,11 @@ export function Scheduled(cron: string): MethodDecorator {
         if (componentType !== "SERVICE" && componentType !== "COMPONENT") {
             throw Error("This decorator only used in the service、component class.");
         }
-        IOCContainer.attachPropertyData(SCHEDULE_KEY, {
-            cron,
-            method: propertyKey
-        }, target, propertyKey);
+        // IOCContainer.attachPropertyData(SCHEDULE_KEY, {
+        //     cron,
+        //     method: propertyKey
+        // }, target, propertyKey);
+        execInjectSchedule(target, IOCContainer, propertyKey, cron);
     };
 }
 
@@ -205,15 +206,15 @@ export const Lock = SchedulerLock;
 const execInjectSchedule = function (target: any, container: Container, method: string, cron: string) {
     const app = container.getApp();
     app.once("appStart", () => {
-        const identifier = IOCContainer.getIdentifier(target);
-        const instance: any = container.getInsByClass(target);
-        const name = `${identifier}_${method}`;
+        const identifier = container.getIdentifier(target);
+        const componentType = container.getType(target);
+        const instance: any = container.get(identifier, componentType);
 
         if (instance && helper.isFunction(instance[method]) && cron) {
             // tslint:disable-next-line: no-unused-expression
             process.env.APP_DEBUG && logger.Custom("think", "", `Register inject ${identifier} schedule key: ${method} => value: ${cron}`);
             new CronJob(cron, async function () {
-                logger.Info(`The schedule job ${name} started.`);
+                logger.Info(`The schedule job ${identifier}_${method} started.`);
                 try {
                     const res = await instance[method]();
                     return res;
