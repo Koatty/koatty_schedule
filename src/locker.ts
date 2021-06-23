@@ -65,7 +65,7 @@ export class Locker {
             if (!this.client || this.client.status !== 'ready') {
                 //Lua scripts execute atomically
                 const redisStore = Store.getInstance(this.options);
-                this.client = await redisStore.connect(3);
+                this.client = await redisStore.getConnection();
                 if (this.client && !this.client.lua_unlock) {
                     this.client.defineCommand('lua_unlock', {
                         numberOfKeys: 1,
