@@ -9,12 +9,12 @@ import "reflect-metadata";
 import { CronJob } from "cron";
 import * as helper from "koatty_lib";
 import { DefaultLogger as logger } from "koatty_logger";
-import { Application, Container, IOCContainer, TAGGED_CLS } from "koatty_container";
+import { Application, IOCContainer } from "koatty_container";
 import { Locker } from "./locker";
 import { recursiveGetMetadata } from "./lib";
 
 const SCHEDULE_KEY = 'SCHEDULE_KEY';
-const APP_READY_HOOK = "APP_READY_HOOK";
+// const APP_READY_HOOK = "APP_READY_HOOK";
 
 /**
  * 
@@ -25,7 +25,7 @@ interface ScheduleLockerInterface {
     locker?: LockerInterface;
 }
 interface LockerInterface {
-    defineCommand?: () => Promise<any>;
+    getClient?: () => Promise<any>;
     lock?: (key: string, expire?: number) => Promise<boolean>;
     waitLock?: (key: string, expire: number, interval?: number, waitTime?: number) => Promise<boolean>;
     unLock?: (key: string) => Promise<boolean>;
@@ -36,45 +36,28 @@ const ScheduleLocker: ScheduleLockerInterface = {
 };
 
 /**
- * initiation redis connection and client.
+ * initiation CacheStore connection and client.
  *
  * @param {Application} app
  * @returns {*}  {Promise<LockerInterface>}
  */
-async function InitRedisConn(app: Application): Promise<LockerInterface> {
+async function InitCacheStore(app: Application): Promise<LockerInterface> {
     if (!ScheduleLocker.locker) {
-        const opt = app.config("SchedulerLock", "db") || app.config("redis", "db");
+        const opt = app.config("CacheStore", "db");
         if (helper.isEmpty(opt)) {
-            throw Error("Missing redis server configuration. Please write a configuration item with the key name 'SchedulerLock' or 'redis' in the db.ts file.");
+            throw Error("Missing CacheStore server configuration. Please write a configuration item with the key name 'CacheStore' in the db.ts file.");
         } else {
-            const lockerStore = Locker.getInstance(opt);
-            if (lockerStore && helper.isFunction(lockerStore.defineCommand)) {
-                await lockerStore.defineCommand();
-                ScheduleLocker.locker = lockerStore;
+            const locker = Locker.getInstance(opt);
+            if (locker && helper.isFunction(locker.getClient)) {
+                await locker.getClient();
+                ScheduleLocker.locker = locker;
             } else {
-                throw Error(`Redis connection failed. `);
+                throw Error(`CacheStore connection failed. `);
             }
         }
     }
 
     return ScheduleLocker.locker;
-}
-
-/**
- * Enable scheduled lock support and initialize redis connection.
- * Need configuration item with the key name 'SchedulerLock' or 'redis' in the db.ts file
- * @export
- * @returns {*} 
- */
-export function EnableScheduleLock(): ClassDecorator {
-    logger.Custom('think', '', 'EnableScheduleLock');
-
-    return (target: any) => {
-        if (!(target.__proto__.name === "Koatty")) {
-            throw new Error(`class does not inherit from Koatty`);
-        }
-        IOCContainer.attachClassMetadata(TAGGED_CLS, APP_READY_HOOK, InitRedisConn, target);
-    };
 }
 
 /**
@@ -106,7 +89,7 @@ export function Scheduled(cron: string): MethodDecorator {
         //     cron,
         //     method: propertyKey
         // }, target, propertyKey);
-        execInjectSchedule(target, IOCContainer, propertyKey, cron);
+        execInjectSchedule(target, propertyKey, cron);
     };
 }
 
@@ -132,6 +115,7 @@ export function SchedulerLock(name?: string, lockTimeOut?: number, waitLockInter
             const identifier = IOCContainer.getIdentifier(target) || (target.constructor ? target.constructor.name : "");
             name = `${identifier}_${methodName}`;
         }
+
         descriptor = {
             configurable,
             enumerable,
@@ -140,7 +124,7 @@ export function SchedulerLock(name?: string, lockTimeOut?: number, waitLockInter
                 const lockerCls = ScheduleLocker.locker;
                 let lockerFlag = false;
                 if (!lockerCls) {
-                    throw Error(`Redis lock ${name} acquisition failed. The method ${methodName} is not executed.`);
+                    throw Error(`Cache lock '${name}' acquisition failed. The method ${methodName} is not executed.`);
                 }
                 if (waitLockInterval || waitLockTimeOut) {
                     lockerFlag = await lockerCls.waitLock(name,
@@ -159,7 +143,7 @@ export function SchedulerLock(name?: string, lockTimeOut?: number, waitLockInter
                 }
                 if (lockerFlag) {
                     try {
-                        logger.Info(`The locker ${name} executed.`);
+                        logger.Info(`The locker '${name}' executed.`);
                         // tslint:disable-next-line: no-invalid-this
                         const res = await value.apply(this, props);
                         return res;
@@ -173,11 +157,14 @@ export function SchedulerLock(name?: string, lockTimeOut?: number, waitLockInter
                         }
                     }
                 } else {
-                    logger.Warn(`Redis lock ${name} acquisition failed. The method ${methodName} is not executed.`);
+                    logger.Warn(`Cache lock '${name}' acquisition failed. The method ${methodName} is not executed.`);
                     return;
                 }
             }
         };
+
+        // bind app_ready hook event 
+        bindSchedulerLockInit();
         return descriptor;
     };
 }
@@ -196,6 +183,17 @@ export function SchedulerLock(name?: string, lockTimeOut?: number, waitLockInter
 export const Lock = SchedulerLock;
 
 /**
+ * bind scheduler lock init event
+ *
+ */
+const bindSchedulerLockInit = function () {
+    const app = IOCContainer.getApp();
+    app && app.once("appStart", async function () {
+        await InitCacheStore(app);
+    })
+}
+
+/**
  * 
  *
  * @param {*} target
@@ -203,16 +201,15 @@ export const Lock = SchedulerLock;
  * @param {string} method
  * @param {string} cron
  */
-const execInjectSchedule = function (target: any, container: Container, method: string, cron: string) {
-    const app = container.getApp();
-    app.once("appStart", () => {
-        const identifier = container.getIdentifier(target);
-        const componentType = container.getType(target);
-        const instance: any = container.get(identifier, componentType);
+const execInjectSchedule = function (target: any, method: string, cron: string) {
+    const app = IOCContainer.getApp();
+    app && app.once("appStart", () => {
+        const identifier = IOCContainer.getIdentifier(target);
+        const componentType = IOCContainer.getType(target);
+        const instance: any = IOCContainer.get(identifier, componentType);
 
         if (instance && helper.isFunction(instance[method]) && cron) {
-            // tslint:disable-next-line: no-unused-expression
-            process.env.APP_DEBUG && logger.Custom("think", "", `Register inject ${identifier} schedule key: ${method} => value: ${cron}`);
+            logger.Debug(`Register inject ${identifier} schedule key: ${method} => value: ${cron}`);
             new CronJob(cron, async function () {
                 logger.Info(`The schedule job ${identifier}_${method} started.`);
                 try {
@@ -231,16 +228,14 @@ const execInjectSchedule = function (target: any, container: Container, method: 
  *
  * @export
  * @param {*} target
- * @param {*} instance
- * @param {Container} container
  */
-export function injectSchedule(target: any, instance: any, container: Container) {
+export function injectSchedule(target: any) {
     const metaDatas = recursiveGetMetadata(SCHEDULE_KEY, target);
     // tslint:disable-next-line: forin
     for (const meta in metaDatas) {
         for (const val of metaDatas[meta]) {
             if (val.cron && meta) {
-                execInjectSchedule(target, container, meta, val.cron);
+                execInjectSchedule(target, meta, val.cron);
             }
         }
     }

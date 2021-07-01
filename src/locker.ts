@@ -5,7 +5,7 @@
  * @ version: 2020-06-05 09:40:35
  */
 import * as crypto from "crypto";
-import { Store, RedisStore } from "koatty_store";
+import { Store, CacheStore } from "koatty_store";
 import { DefaultLogger as logger } from "koatty_logger";
 
 /**
@@ -24,18 +24,19 @@ export class Locker {
 
     private static instance: Locker;
     client: any;
+    cacheStore: any;
 
 
     /**
      * 
      *
      * @static
-     * @param {RedisStore} options
+     * @param {CacheStore} options
      * @param {boolean} [force=false]
      * @returns
      * @memberof Locker
      */
-    static getInstance(options: RedisStore, force = false) {
+    static getInstance(options: CacheStore, force = false) {
         if (!this.instance || force) {
             this.instance = new Locker(options);
         }
@@ -44,14 +45,32 @@ export class Locker {
 
     /**
      * Creates an instance of Locker.
-     * @param {RedisStore} options
+     * @param {CacheStore} options
      * @memberof Locker
      */
-    private constructor(options: RedisStore) {
+    private constructor(options: CacheStore) {
         this.lockMap = new Map();
         this.options = options;
-
         this.client = null;
+        this.cacheStore = Store.getInstance(this.options);
+    }
+
+    /**
+     * instances of cache store
+     *
+     * @returns {*}  
+     * @memberof Locker
+     */
+    async getClient() {
+        try {
+            if (!this.client || this.client.status !== 'ready') {
+                this.client = await this.cacheStore.getConnection();
+            }
+            return this.client;
+        } catch (e) {
+            logger.Error(`CacheStore connection failed. ${e.message}`);
+            return null;
+        }
     }
 
     /**
@@ -62,16 +81,13 @@ export class Locker {
      */
     async defineCommand() {
         try {
-            if (!this.client || this.client.status !== 'ready') {
-                //Lua scripts execute atomically
-                const redisStore = Store.getInstance(this.options);
-                this.client = await redisStore.getConnection();
-                if (this.client && !this.client.lua_unlock) {
-                    this.client.defineCommand('lua_unlock', {
-                        numberOfKeys: 1,
-                        lua: `
+            //Lua scripts execute atomically
+            if (this.client && !this.client.getCompare) {
+                this.client.defineCommand('getCompare', {
+                    numberOfKeys: 1,
+                    lua: `
                             local remote_value = redis.call("get",KEYS[1])
-                            
+
                             if (not remote_value) then
                                 return 0
                             elseif (remote_value == ARGV[1]) then
@@ -80,11 +96,10 @@ export class Locker {
                                 return -1
                             end
                 `});
-                }
             }
             return this.client;
         } catch (e) {
-            logger.Error(`Redis connection failed. at ScheduleLocker.InitRedisConn. ${e.message}`);
+            logger.Error(`CacheStore connection failed. ${e.message}`);
             return null;
         }
     }
@@ -99,7 +114,7 @@ export class Locker {
      */
     async lock(key: string, expire = 10000): Promise<boolean> {
         try {
-            const client = await this.defineCommand();
+            const client = await this.getClient();
             key = `${this.options.key_prefix}${key}`;
             const value = crypto.randomBytes(16).toString('hex');
             const result = await client.set(key, value, 'NX', 'PX', expire);
@@ -169,13 +184,14 @@ export class Locker {
      */
     async unLock(key: string): Promise<boolean> {
         try {
-            const client = await this.defineCommand();
             key = `${this.options.key_prefix}${key}`;
             if (!this.lockMap.has(key)) {
                 return null;
             }
             const { value } = this.lockMap.get(key);
-            await client.lua_unlock(key, value);
+            // 适配memory类型cacheStore
+            await this.cacheStore.getCompare(key, value);
+
             this.lockMap.delete(key);
             return true;
         } catch (e) {
