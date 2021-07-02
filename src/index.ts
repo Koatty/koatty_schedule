@@ -43,17 +43,30 @@ const ScheduleLocker: ScheduleLockerInterface = {
  */
 async function InitCacheStore(app: Application): Promise<LockerInterface> {
     if (!ScheduleLocker.locker) {
-        const opt = app.config("CacheStore", "db");
-        if (helper.isEmpty(opt)) {
-            throw Error("Missing CacheStore server configuration. Please write a configuration item with the key name 'CacheStore' in the db.ts file.");
+        const opt = app.config("CacheStore", "db") ?? {};
+        // if (helper.isEmpty(opt)) {
+        //     throw Error(`Missing CacheStore server configuration. Please write a configuration item with the key name 'CacheStore' in the db.ts file.
+        //     "CacheStore": {
+        //         type: string; // redis or memory, default is memory
+        //         key_prefix: string;
+        //         host: string | Array<string>;
+        //         port?: number | Array<number>;
+        //         name?: string;
+        //         username?: string;
+        //         password?: string;
+        //         db?: number;
+        //         timeout?: number;
+        //         pool_size?: number;
+        //         conn_timeout?: number;
+        //     },
+        //     `);
+        // } 
+        const locker = Locker.getInstance(opt);
+        if (locker && helper.isFunction(locker.getClient)) {
+            await locker.getClient();
+            ScheduleLocker.locker = locker;
         } else {
-            const locker = Locker.getInstance(opt);
-            if (locker && helper.isFunction(locker.getClient)) {
-                await locker.getClient();
-                ScheduleLocker.locker = locker;
-            } else {
-                throw Error(`CacheStore connection failed. `);
-            }
+            throw Error(`CacheStore connection failed. `);
         }
     }
 
