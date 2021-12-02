@@ -12,6 +12,7 @@ import { DefaultLogger as logger } from "koatty_logger";
 import { Application, IOCContainer } from "koatty_container";
 import { Locker } from "./locker";
 import { recursiveGetMetadata } from "./lib";
+import { StoreOptions } from "koatty_store";
 
 const SCHEDULE_KEY = 'SCHEDULE_KEY';
 // const APP_READY_HOOK = "APP_READY_HOOK";
@@ -35,28 +36,45 @@ const ScheduleLocker: ScheduleLockerInterface = {
     locker: null,
 };
 
+
 /**
- * initiation CacheStore connection and client.
+ * get instances of cacheStore
  *
+ * @export
  * @param {Application} app
- * @returns {*}  {Promise<LockerInterface>}
+ * @returns {*}  {CacheStore}
  */
-async function InitCacheStore(app: Application): Promise<LockerInterface> {
+export async function GetScheduleLocker(app: Application): Promise<LockerInterface> {
     if (!ScheduleLocker.locker) {
-        const opt = app.config("CacheStore", "db") ?? {};
+        const opt: StoreOptions = app.config("CacheStore", "db") ?? {};
         if (helper.isEmpty(opt)) {
-            logger.Warn(`Missing CacheStore server configuration. Please write a configuration item with the key name 'CacheStore' in the db.ts file.`);
+            logger.Warn(`Missing configuration. Please write a configuration item with the key name 'CacheStore' in the db.ts file.`);
+        }
+        if (opt.type !== "redis") {
+            throw Error(`ScheduleLocker depends on redis, please configure redis server. `);
         }
         const locker = Locker.getInstance(opt);
         if (locker && helper.isFunction(locker.getClient)) {
             await locker.getClient();
             ScheduleLocker.locker = locker;
         } else {
-            throw Error(`CacheStore connection failed. `);
+            throw Error(`Redis locker connection failed. `);
         }
     }
-
     return ScheduleLocker.locker;
+}
+
+
+/**
+ * Initiation schedule locker client.
+ *
+ * @returns {*}  
+ */
+async function InitScheduleLocker() {
+    const app = IOCContainer.getApp();
+    app && app.once("appStart", async function () {
+        await GetScheduleLocker(app);
+    })
 }
 
 /**
@@ -163,7 +181,7 @@ export function SchedulerLock(name?: string, lockTimeOut?: number, waitLockInter
         };
 
         // bind app_ready hook event 
-        bindSchedulerLockInit();
+        InitScheduleLocker();
         return descriptor;
     };
 }
@@ -180,17 +198,6 @@ export function SchedulerLock(name?: string, lockTimeOut?: number, waitLockInter
  * @returns {MethodDecorator}
  */
 export const Lock = SchedulerLock;
-
-/**
- * bind scheduler lock init event
- *
- */
-const bindSchedulerLockInit = function () {
-    const app = IOCContainer.getApp();
-    app && app.once("appStart", async function () {
-        await InitCacheStore(app);
-    })
-}
 
 /**
  * 

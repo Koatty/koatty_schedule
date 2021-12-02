@@ -5,7 +5,7 @@
  * @ version: 2020-06-05 09:40:35
  */
 import * as crypto from "crypto";
-import { Store, CacheStore } from "koatty_store";
+import { Store, CacheStore, StoreOptions } from "koatty_store";
 import { DefaultLogger as logger } from "koatty_logger";
 
 /**
@@ -31,12 +31,12 @@ export class Locker {
      * 
      *
      * @static
-     * @param {CacheStore} options
+     * @param {StoreOptions} options
      * @param {boolean} [force=false]
      * @returns
      * @memberof Locker
      */
-    static getInstance(options: CacheStore, force = false) {
+    static getInstance(options: StoreOptions, force = false) {
         if (!this.instance || force) {
             this.instance = new Locker(options);
         }
@@ -45,10 +45,10 @@ export class Locker {
 
     /**
      * Creates an instance of Locker.
-     * @param {CacheStore} options
+     * @param {StoreOptions} options
      * @memberof Locker
      */
-    private constructor(options: CacheStore) {
+    private constructor(options: StoreOptions) {
         this.lockMap = new Map();
         this.options = options;
         this.client = null;
