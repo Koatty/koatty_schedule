@@ -1,6 +1,6 @@
 {
     "name": "koatty_schedule",
-    "version": "1.4.10",
+    "version": "1.5.2",
     "description": "Schedule for koatty.",
     "scripts": {
         "build": "del-cli --force dist && tsc",
