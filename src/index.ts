@@ -46,9 +46,9 @@ const ScheduleLocker: ScheduleLockerInterface = {
  */
 export async function GetScheduleLocker(app: Application): Promise<LockerInterface> {
     if (!ScheduleLocker.locker) {
-        const opt: StoreOptions = app.config("CacheStore", "db") ?? {};
+        const opt: StoreOptions = app.config("SchedulerLock", "db") ?? {};
         if (helper.isEmpty(opt)) {
-            logger.Warn(`Missing configuration. Please write a configuration item with the key name 'CacheStore' in the db.ts file.`);
+            logger.Warn(`Missing configuration. Please write a configuration item with the key name 'SchedulerLock' in the db.ts file.`);
         }
         if (opt.type !== "redis") {
             throw Error(`ScheduleLocker depends on redis, please configure redis server. `);
