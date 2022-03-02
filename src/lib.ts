@@ -67,7 +67,7 @@ export function recursiveGetMetadata(metadataKey: any, target: any, propertyKey?
         const pMetadata = IOCContainer.listPropertyData(metadataKey, parent);
         if (pMetadata) {
             for (const n in pMetadata) {
-                if (!metadata.hasOwnProperty(n)) {
+                if (!Object.hasOwnProperty.call(metadata, n)) {
                     metadata[n] = pMetadata[n];
                 }
             }

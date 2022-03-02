@@ -144,9 +144,9 @@ export class Locker {
      */
     async waitLock(key: string, expire: number, interval = 50, waitTime = 15000): Promise<boolean> {
         try {
-            const start_time = Date.now();
+            const startTime = Date.now();
             let result;
-            while ((Date.now() - start_time) < waitTime) {
+            while ((Date.now() - startTime) < waitTime) {
                 result = await this.lock(key, expire).catch((err: any) => {
                     logger.Error(err.stack || err.message);
                 });
