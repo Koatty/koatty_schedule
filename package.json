@@ -74,9 +74,10 @@
         "reflect-metadata": "^0.1.13",
         "tslib": "^2.3.1"
     },
-    "husky": {
-        "hooks": {
-            "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
-        }
+    "peerDependencies": {
+        "koatty_container": "^1.x.x",
+        "koatty_lib": "^1.x.x",
+        "koatty_logger": "^1.x.x",
+        "koatty_store": "^1.x.x"
     }
 }
