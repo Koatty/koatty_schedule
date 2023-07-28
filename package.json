@@ -9,7 +9,7 @@
     "build:doc": "del-cli --force docs/api && npx api-documenter markdown --input temp --output docs/api",
     "build:dts": "del-cli --force temp && npx tsc && npx api-extractor run --local --verbose",
     "eslint": "eslint --ext .ts,.js ./",
-    "prepublishOnly": "npm test && npm run build",
+    "prepublishOnly": "npm test && npm run build && git push --follow-tags origin master",
     "prerelease": "npm test && npm run build",
     "release": "standard-version",
     "test": "npm run eslint && jest --passWithNoTests"
