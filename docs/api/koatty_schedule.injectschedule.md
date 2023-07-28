@@ -7,7 +7,7 @@
 Inject schedule job
 
 
-<b>Signature:</b>
+**Signature:**
 
 ```typescript
 export declare function injectSchedule(target: any): void;
@@ -19,7 +19,7 @@ export declare function injectSchedule(target: any): void;
 |  --- | --- | --- |
 |  target | any |  |
 
-<b>Returns:</b>
+**Returns:**
 
 void
 

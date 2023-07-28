@@ -7,7 +7,7 @@
 get instances of cacheStore
 
 
-<b>Signature:</b>
+**Signature:**
 
 ```typescript
 export declare function GetScheduleLocker(app: Application): Promise<LockerInterface>;
@@ -19,7 +19,7 @@ export declare function GetScheduleLocker(app: Application): Promise<LockerInter
 |  --- | --- | --- |
 |  app | Application |  |
 
-<b>Returns:</b>
+**Returns:**
 
 Promise&lt;LockerInterface&gt;
 

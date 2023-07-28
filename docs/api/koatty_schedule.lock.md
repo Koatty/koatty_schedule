@@ -7,7 +7,7 @@
 Redis-based distributed locks. Redis server config from db.ts.
 
 
-<b>Signature:</b>
+**Signature:**
 
 ```typescript
 Lock: typeof SchedulerLock

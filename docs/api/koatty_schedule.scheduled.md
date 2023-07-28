@@ -7,7 +7,7 @@
 Schedule task
 
 
-<b>Signature:</b>
+**Signature:**
 
 ```typescript
 export declare function Scheduled(cron: string): MethodDecorator;
@@ -19,7 +19,7 @@ export declare function Scheduled(cron: string): MethodDecorator;
 |  --- | --- | --- |
 |  cron | string | \* Seconds: 0-59 \* Minutes: 0-59 \* Hours: 0-23 \* Day of Month: 1-31 \* Months: 0-11 (Jan-Dec) \* Day of Week: 0-6 (Sun-Sat) |
 
-<b>Returns:</b>
+**Returns:**
 
 MethodDecorator
 

@@ -7,7 +7,7 @@
 Redis-based distributed locks. Redis server config from db.ts.
 
 
-<b>Signature:</b>
+**Signature:**
 
 ```typescript
 export declare function SchedulerLock(name?: string, lockTimeOut?: number, waitLockInterval?: number, waitLockTimeOut?: number): MethodDecorator;
@@ -17,12 +17,12 @@ export declare function SchedulerLock(name?: string, lockTimeOut?: number, waitL
 
 |  Parameter | Type | Description |
 |  --- | --- | --- |
-|  name | string | <i>(Optional)</i> The locker name. If name is duplicated, lock sharing contention will result. |
-|  lockTimeOut | number | <i>(Optional)</i> Automatic release of lock within a limited maximum time. |
-|  waitLockInterval | number | <i>(Optional)</i> Try to acquire lock every interval time(millisecond). |
-|  waitLockTimeOut | number | <i>(Optional)</i> When using more than TimeOut(millisecond) still fails to get the lock and return failure. |
+|  name | string | _(Optional)_ The locker name. If name is duplicated, lock sharing contention will result. |
+|  lockTimeOut | number | _(Optional)_ Automatic release of lock within a limited maximum time. |
+|  waitLockInterval | number | _(Optional)_ Try to acquire lock every interval time(millisecond). |
+|  waitLockTimeOut | number | _(Optional)_ When using more than TimeOut(millisecond) still fails to get the lock and return failure. |
 
-<b>Returns:</b>
+**Returns:**
 
 MethodDecorator
 
