@@ -9,6 +9,7 @@
     "build:doc": "del-cli --force docs/api && npx api-documenter markdown --input temp --output docs/api",
     "build:dts": "del-cli --force temp && npx tsc && npx api-extractor run --local --verbose",
     "eslint": "eslint --ext .ts,.js ./",
+    "lock": "npm i --package-lock-only",
     "prepublishOnly": "npm test && npm run build && git push --follow-tags origin master",
     "prerelease": "npm test && npm run build",
     "release": "standard-version",
@@ -71,20 +72,19 @@
     "standard-version": "^9.x.x",
     "ts-jest": "^29.x.x",
     "ts-node": "^10.x.x",
+    "tslib": "^2.x.x",
     "typescript": "^4.x.x"
   },
   "dependencies": {
-    "cron": "^2.4.0",
+    "cron": "^2.4.3",
     "koatty_container": "^1.x.x",
     "koatty_lib": "^1.x.x",
     "koatty_logger": "^2.x.x",
-    "koatty_store": "^1.x.x",
-    "tslib": "^2.6.1"
+    "koatty_store": "^1.6.2"
   },
   "peerDependencies": {
     "koatty_container": "^1.x.x",
     "koatty_lib": "^1.x.x",
-    "koatty_logger": "^2.x.x",
-    "koatty_store": "^1.x.x"
+    "koatty_logger": "^2.x.x"
   }
 }

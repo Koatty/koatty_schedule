@@ -5,7 +5,7 @@
  * @ version: 2020-06-05 09:40:35
  */
 import * as crypto from "crypto";
-import { Store, CacheStore, StoreOptions } from "koatty_store";
+import { CacheStore, StoreOptions } from "koatty_store";
 import { DefaultLogger as logger } from "koatty_logger";
 
 /**
@@ -52,7 +52,7 @@ export class Locker {
         this.lockMap = new Map();
         this.options = options;
         this.client = null;
-        this.cacheStore = Store.getInstance(this.options);
+        this.cacheStore = CacheStore.getInstance(this.options);
     }
 
     /**
