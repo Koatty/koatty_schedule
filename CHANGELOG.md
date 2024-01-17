@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.0.0](https://github.com/thinkkoa/koatty_schedule/compare/v1.6.0...v2.0.0) (2024-01-17)
+
+
+### Refactor
+
+* redlock ([beb7cd9](https://github.com/thinkkoa/koatty_schedule/commit/beb7cd90878319cb1c480f4ad11b2632c184872b))
+* redlock ([ea29337](https://github.com/thinkkoa/koatty_schedule/commit/ea29337052aee081322918914876a95923d314ae))
+
 ## [1.6.0](https://github.com/thinkkoa/koatty_schedule/compare/v1.5.11...v1.6.0) (2023-12-20)
 
 ### [1.5.11](https://github.com/thinkkoa/koatty_schedule/compare/v1.5.10...v1.5.11) (2023-07-28)

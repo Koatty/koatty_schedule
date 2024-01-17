@@ -1,6 +1,6 @@
 {
   "name": "koatty_schedule",
-  "version": "1.6.0",
+  "version": "2.0.0",
   "description": "Schedule for koatty.",
   "scripts": {
     "build": "npm run build:js && npm run build:dts && npm run build:doc && npm run build:cp",
@@ -12,6 +12,8 @@
     "lock": "npm i --package-lock-only",
     "prepublishOnly": "npm test && npm run build && git push --follow-tags origin master",
     "prerelease": "npm test && npm run build",
+    "release:minor": "npm run release -- --release-as minor",
+    "release:major": "npm run release -- --release-as major",
     "release": "standard-version",
     "test": "npm run eslint && jest --passWithNoTests"
   },
