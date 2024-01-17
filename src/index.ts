@@ -52,9 +52,13 @@ export function Scheduled(cron: string, timezone = 'Asia/Beijing'): MethodDecora
  *
  * @export
  * @param {string} [name] The locker name. If name is duplicated, lock sharing contention will result.
- * @param {number} [lockTimeOut] Automatic release of lock within a limited maximum time. default 10000
- * @param {number} [waitLockRetry] Try to acquire lock max time. default 3
+ * @param {RedLockOptions} [options] 
  * 
+ * lockTimeOut ?: number; lock a resource times
+ * 
+ * retryCount ?: number; The max number of times Redlock will attempt to lock a resource
+ * 
+ * RedisOptions: RedisOptions; redis config
  * @returns {MethodDecorator}
  */
 export function RedLock(name?: string, options?: RedLockOptions): MethodDecorator {
