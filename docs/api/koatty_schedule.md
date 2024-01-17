@@ -8,14 +8,6 @@
 
 |  Function | Description |
 |  --- | --- |
-|  [GetScheduleLocker(app)](./koatty_schedule.getschedulelocker.md) | <p>get instances of cacheStore</p> |
-|  [injectSchedule(target)](./koatty_schedule.injectschedule.md) | <p>Inject schedule job</p> |
-|  [Scheduled(cron)](./koatty_schedule.scheduled.md) | <p>Schedule task</p> |
-|  [SchedulerLock(name, lockTimeOut, waitLockInterval, waitLockTimeOut)](./koatty_schedule.schedulerlock.md) | <p>Redis-based distributed locks. Redis server config from db.ts.</p> |
-
-## Variables
-
-|  Variable | Description |
-|  --- | --- |
-|  [Lock](./koatty_schedule.lock.md) | <p>Redis-based distributed locks. Redis server config from db.ts.</p> |
+|  [RedLock(name, options)](./koatty_schedule.redlock.md) | <p>Redis-based distributed locks. Redis server config from db.ts.</p> |
+|  [Scheduled(cron, timezone)](./koatty_schedule.scheduled.md) | <p>Schedule task</p> |
 
