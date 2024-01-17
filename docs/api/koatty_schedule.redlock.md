@@ -18,7 +18,7 @@ export declare function RedLock(name?: string, options?: RedLockOptions): Method
 |  Parameter | Type | Description |
 |  --- | --- | --- |
 |  name | string | _(Optional)_ The locker name. If name is duplicated, lock sharing contention will result. |
-|  options | RedLockOptions | _(Optional)_ |
+|  options | RedLockOptions | <p>_(Optional)_ lockTimeOut ?: number; lock a resource times</p><p>retryCount ?: number; The max number of times Redlock will attempt to lock a resource</p><p>RedisOptions: RedisOptions; redis config</p> |
 
 **Returns:**
 
