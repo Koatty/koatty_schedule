@@ -3,7 +3,7 @@
  * @Usage: 
  * @Author: richen
  * @Date: 2024-01-16 20:19:23
- * @LastEditTime: 2024-01-17 11:04:13
+ * @LastEditTime: 2024-01-17 11:24:06
  * @License: BSD (3-Clause)
  * @Copyright (c): <richenlin(at)gmail.com>
  */
@@ -27,11 +27,6 @@ export interface RedLockOptions {
    * The max number of times Redlock will attempt to lock a resource
    */
   retryCount?: number;
-  /**
-   * If there is a lock timeout, renew the lock and retry execution,
-   *  with a maximum of maxRetry attempts.
-   */
-  renewCount?: number;
   /**
    * redis config
    */

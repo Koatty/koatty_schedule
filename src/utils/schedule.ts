@@ -42,29 +42,24 @@ export function redLockerDescriptor(descriptor: PropertyDescriptor, name: string
   method: string, options?: RedLockOptions): PropertyDescriptor {
   const { value, configurable, enumerable } = descriptor;
   const valueFunction = async (self: any, lock: Lock, lockTime: number, timeout: number,
-    renewCount: number, props: any[]) => {
-    let retryCount = 0;
-
+    props: any[]) => {
     try {
-      while (true) {
-        // 等待函数执行完成或锁定超时
-        const result = await Promise.race([value.apply(self, props), timeoutPromise(timeout)]);
-        // 如果函数执行成功，退出循环 
-        return result;
-      }
+      // Wait for the function to complete or for the lock to time out.
+      await Promise.race([value.apply(self, props), timeoutPromise(timeout)]);
     } catch (error) {
-      // 如果是锁定超时，进行续期并重新执行，最多重试 renewCount 次
-      if (error.message === 'TIME_OUT_ERROR' && retryCount < renewCount) {
-        logger.Info(`Renew lock, Retry ${retryCount + 1}`);
-        retryCount++;
+      // If the lock times out and the function has not completed,
+      // renew the lock once. after renewal, the function still has not completed,
+      // the lock may be released prematurely.
+      if (error.message === 'TIME_OUT_ERROR') {
+        logger.Info(`The execution exceeds the lock duration, trigger lock renewal.`);
         // Extend the lock. Note that this returns a new `Lock` instance.
         lock = await lock.extend(timeout);
-        // 重试
-        await valueFunction(self, lock, lockTime, timeout, renewCount, props);
+        // wait for timeout to release lock
+        await timeoutPromise(timeout).catch(e => { });
       }
       throw error;
     } finally {
-      // 释放锁
+      // release lock
       lock.release();
     }
   }
@@ -76,7 +71,6 @@ export function redLockerDescriptor(descriptor: PropertyDescriptor, name: string
       const redlock = RedLocker.getInstance();
       // Acquire a lock.
       const lockTime = options.lockTimeOut || 10000;
-      const renewCount = options.renewCount || 3;
       const lock = await redlock.acquire([method, name], lockTime);
       const timeout = lockTime - 200;
       if (timeout <= 0) {
@@ -86,7 +80,7 @@ export function redLockerDescriptor(descriptor: PropertyDescriptor, name: string
           "resulting in a failure of the function execution.");
       }
 
-      return valueFunction(this, lock, lockTime, timeout, renewCount, props);
+      return valueFunction(this, lock, lockTime, timeout, props);
     },
   }
 }
@@ -108,6 +102,7 @@ export function injectSchedule(target: any, method: string, cron: string, timezo
     const instance: any = IOCContainer.get(identifier, componentType);
 
     if (instance && Helper.isFunction(instance[method]) && cron) {
+      timezone = timezone || "Asia/Beijing";
       logger.Debug(`Register inject ${identifier} schedule key: ${method} => value: ${cron}`);
       new CronJob(
         cron, // cronTime
@@ -140,7 +135,7 @@ export function injectSchedule(target: any, method: string, cron: string, timezo
 //   for (const meta in metaDatas) {
 //     for (const val of metaDatas[meta]) {
 //       if (val.cron && meta) {
-//         execInjectSchedule(target, meta, val.cron);
+//         injectSchedule(target, meta, val.cron);
 //       }
 //     }
 //   }
