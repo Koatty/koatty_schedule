@@ -4,15 +4,13 @@
  * @ license: MIT
  * @ version: 2020-07-06 10:29:20
  */
-import { Application, IOCContainer } from "koatty_container";
+import { Lock } from "@sesamecare-oss/redlock";
+import { CronJob } from "cron";
+import { IOCContainer } from "koatty_container";
 import { Helper } from "koatty_lib";
 import { DefaultLogger as logger } from "koatty_logger";
-import { CronJob } from "cron";
-import { RedLockOptions, RedLocker } from "./redlock";
 import { timeoutPromise } from "./lib";
-import { Lock } from "@sesamecare-oss/redlock";
-
-const SCHEDULE_KEY = 'SCHEDULE_KEY';
+import { RedLockOptions, RedLocker } from "./redlock";
 
 /**
  * Initiation schedule locker client.

@@ -7,10 +7,10 @@
 // tslint:disable-next-line: no-import-side-effect
 import "reflect-metadata";
 
+import { IOCContainer } from "koatty_container";
 import * as helper from "koatty_lib";
-import { Application, IOCContainer } from "koatty_container";
-import { initRedLock, injectSchedule, redLockerDescriptor } from "./utils/schedule";
 import { RedLockOptions } from "./utils/redlock";
+import { initRedLock, injectSchedule, redLockerDescriptor } from "./utils/schedule";
 
 
 /**
@@ -18,7 +18,7 @@ import { RedLockOptions } from "./utils/redlock";
  *
  * @export
  * @param {string} cron
- * @param {string} timezone
+ * @param {string} _timezone
  * * Seconds: 0-59
  * * Minutes: 0-59
  * * Hours: 0-23
@@ -28,13 +28,13 @@ import { RedLockOptions } from "./utils/redlock";
  * 
  * @returns {MethodDecorator}
  */
-export function Scheduled(cron: string, timezone = 'Asia/Beijing'): MethodDecorator {
+export function Scheduled(cron: string, _timezone = 'Asia/Beijing'): MethodDecorator {
   if (helper.isEmpty(cron)) {
     // cron = "0 * * * * *";
     throw Error("ScheduleJob rule is not defined");
   }
 
-  return (target, propertyKey: string, descriptor: PropertyDescriptor) => {
+  return (target, propertyKey: string, _descriptor: PropertyDescriptor) => {
     const componentType = IOCContainer.getType(target);
     if (componentType !== "SERVICE" && componentType !== "COMPONENT") {
       throw Error("This decorator only used in the service、component class.");
