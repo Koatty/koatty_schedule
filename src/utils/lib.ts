@@ -3,7 +3,7 @@
  * @Usage: 
  * @Author: richen
  * @Date: 2024-01-16 19:53:14
- * @LastEditTime: 2024-01-17 09:24:45
+ * @LastEditTime: 2024-11-07 16:47:58
  * @License: BSD (3-Clause)
  * @Copyright (c): <richenlin(at)gmail.com>
  */
@@ -58,7 +58,7 @@ function ordinaryGetPrototypeOf(obj: any): any {
  * @param metadataKey metadata key
  * @param target the target of metadataKey
  */
-export function recursiveGetMetadata(metadataKey: any, target: any, propertyKey?: string | symbol): any[] {
+export function recursiveGetMetadata(metadataKey: any, target: any, _propertyKey?: string | symbol): any[] {
   // get metadata value of a metadata key on the prototype
   // let metadata = Reflect.getOwnMetadata(metadataKey, target, propertyKey);
   const metadata = IOCContainer.listPropertyData(metadataKey, target) || {};
