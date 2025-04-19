@@ -28,7 +28,7 @@ import { initRedLock, injectSchedule, redLockerDescriptor } from "./utils/schedu
  * 
  * @returns {MethodDecorator}
  */
-export function Scheduled(cron: string, _timezone = 'Asia/Beijing'): MethodDecorator {
+export function Scheduled(cron: string, _timezone = 'Asia/Shanghai'): MethodDecorator {
   if (helper.isEmpty(cron)) {
     // cron = "0 * * * * *";
     throw Error("ScheduleJob rule is not defined");
