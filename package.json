@@ -85,12 +85,15 @@
   },
   "dependencies": {
     "@sesamecare-oss/redlock": "^1.4.0",
+    "@types/ioredis": "^5.0.0",
+    "@types/redlock": "^4.0.7",
     "cron": "^4.3.0",
     "ioredis": "^5.6.1",
     "koatty_container": "^1.x.x",
     "koatty_lib": "^1.x.x",
     "koatty_logger": "^2.x.x",
-    "koatty_store": "^1.x.x"
+    "koatty_store": "^1.x.x",
+    "redlock": "5.0.0-beta.2"
   },
   "peerDependencies": {
     "koatty_container": "^1.x.x",
