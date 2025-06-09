@@ -8,13 +8,11 @@
  * @Copyright (c): <richenlin(at)gmail.com>
  */
 
-import { IOCContainer } from "koatty_container";
+import { IOCContainer, MethodDecoratorManager, DecoratorMetadata } from "koatty_container";
 import { RedLockOptions } from "../locker/redlock";
 import { Helper } from "koatty_lib";
-import { DecoratorManager, DecoratorMetadata } from "./manager";
 import { validateRedLockOptions, DecoratorType } from "../config/config";
 import { initRedLock, redLockerDescriptor } from "../process/locker";
-
 
 /**
  * RedLock decorator configuration  
@@ -39,8 +37,10 @@ export interface RedLockConfig {
  * @returns {MethodDecorator}
  * @throws {Error} When decorator is used on wrong class type or invalid configuration
  */
-export function RedLock(name?: string, options?: RedLockOptions): MethodDecorator {
-  return (target: unknown, methodName: string, descriptor: PropertyDescriptor) => {
+export function RedLock(lockName?: string, options?: RedLockOptions): MethodDecorator {
+  return (target: unknown, propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
+    const methodName = propertyKey.toString();
+
     // 验证装饰器使用的类型
     const targetObj = target as object | Function;
     const componentType = IOCContainer.getType(targetObj);
@@ -59,7 +59,6 @@ export function RedLock(name?: string, options?: RedLockOptions): MethodDecorato
     }
 
     // 生成锁名称
-    let lockName = name;
     if (Helper.isEmpty(lockName)) {
       const targetWithConstructor = target as { constructor?: Function };
       const identifier = IOCContainer.getIdentifier(targetObj) || (targetWithConstructor.constructor ? targetWithConstructor.constructor.name : "");
@@ -82,7 +81,7 @@ export function RedLock(name?: string, options?: RedLockOptions): MethodDecorato
 
     try {
       // 使用装饰器管理器进行预处理
-      const decoratorManager = DecoratorManager.getInstance();
+      const decoratorManager = MethodDecoratorManager.getInstance();
 
       // Register wrapper for RedLock decorator if not already registered
       if (!decoratorManager.hasWrapper(DecoratorType.REDLOCK)) {

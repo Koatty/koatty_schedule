@@ -10,9 +10,8 @@
 
 import { Helper } from "koatty_lib";
 import { DecoratorType, validateCronExpression } from "../config/config";
-import { DecoratorManager, DecoratorMetadata } from "./manager";
 import { injectSchedule } from "../process/schedule";
-import { IOCContainer } from "koatty_container";
+import { IOCContainer, MethodDecoratorManager, DecoratorMetadata } from "koatty_container";
 
 /**
  * Scheduled decorator configuration
@@ -79,7 +78,7 @@ export function Scheduled(cron: string, timezone = 'Asia/Beijing'): MethodDecora
 
     try {
       // 使用装饰器管理器进行预处理
-      const decoratorManager = DecoratorManager.getInstance();
+      const decoratorManager = MethodDecoratorManager.getInstance();
 
       // Register wrapper for Scheduled decorator if not already registered
       if (!decoratorManager.hasWrapper(DecoratorType.SCHEDULED)) {

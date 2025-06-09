@@ -22,7 +22,12 @@ import { timeoutPromise } from "../utils/lib";
  */
 export async function initRedLock(): Promise<void> {
   const app = IOCContainer.getApp();
-  app?.once("appStart", async function () {
+  if (!app || !Helper.isFunction(app.once)) {
+    logger.Warn(`RedLock initialization skipped: Koatty app not available or not initialized`);
+    return;
+  }
+  
+  app.once("appStart", async function () {
     try {
       const opt: RedLockOptions = app.config("RedLock", "db") ?? {};
       if (Helper.isEmpty(opt)) {

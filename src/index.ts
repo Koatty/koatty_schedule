@@ -14,11 +14,7 @@ export { RedLock, Scheduled };
 // Export utility functions and types for advanced usage
 export { RedLockOptions } from "./locker/redlock";
 export { DecoratorType, validateCronExpression, validateRedLockOptions } from "./config/config";
-export { 
-  DecoratorManager, 
-  DecoratorMetadata,
-  WrapperFunction
-} from "./decorator/manager";
+
 // Legacy compatibility - maintain the original SchedulerLock name
 /**
  * @deprecated Use RedLock instead. This will be removed in v3.0.0

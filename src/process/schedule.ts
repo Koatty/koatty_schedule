@@ -37,7 +37,12 @@ export function injectSchedule(
   }
 
   const app = IOCContainer.getApp();
-  app?.once("appStart", () => {
+  if (!app || !Helper.isFunction(app.once)) {
+    logger.Warn(`Schedule injection for ${method} skipped: Koatty app not available or not initialized`);
+    return;
+  }
+  
+  app.once("appStart", () => {
     try {
       const targetObj = target as object | Function;
       const identifier = IOCContainer.getIdentifier(targetObj);
