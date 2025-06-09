@@ -20,14 +20,27 @@ export interface ScheduleConfig {
 }
 
 /**
- * Configuration manager for scheduling and locking
+ * Configuration manager for koatty_schedule
+ * Integrated with koatty IOC container
  */
 export class ConfigManager {
-  private config: ScheduleConfig = {};
+  private config: ScheduleConfig = {
+    timezone: 'Asia/Beijing',
+    RedLock: {
+      lockTimeOut: 10000,
+      retryCount: 3,
+      retryDelay: 200,
+      retryJitter: 200
+    }
+  };
   private loaded = false;
+  private static instance: ConfigManager;
 
   constructor() {
-    // Register this instance in IOC container if available
+    // Load environment configuration by default
+    this.loadEnvironmentConfig();
+    
+    // Register this instance in IOC container
     this.registerInContainer();
   }
 
@@ -37,32 +50,25 @@ export class ConfigManager {
    */
   private registerInContainer(): void {
     try {
-      const { IOCContainer } = require("koatty_container");
+      const { IOCContainer } = require('koatty_container');
       IOCContainer.reg('ConfigManager', this, {
         type: 'COMPONENT',
         args: []
       });
       logger.Debug('ConfigManager registered in IOC container');
-    } catch (error) {
-      logger.Debug('IOC container not available, using standalone ConfigManager');
+    } catch (_error) {
+      logger.Debug('IOC container not available, continuing without registration');
     }
   }
 
   /**
-   * Get ConfigManager instance
-   * @static
+   * Get ConfigManager instance (singleton)
    */
   public static getInstance(): ConfigManager {
-    try {
-      const { IOCContainer } = require("koatty_container");
-      let instance = IOCContainer.get('ConfigManager', 'COMPONENT') as ConfigManager;
-      if (!instance) {
-        instance = new ConfigManager();
-      }
-      return instance;
-    } catch {
-      return new ConfigManager();
+    if (!ConfigManager.instance) {
+      ConfigManager.instance = new ConfigManager();
     }
+    return ConfigManager.instance;
   }
 
   /**
@@ -70,171 +76,165 @@ export class ConfigManager {
    */
   loadEnvironmentConfig(): void {
     try {
-      this.config = {
-        timezone: process.env.KOATTY_SCHEDULE_TIMEZONE || 'Asia/Beijing',
-        RedLock: {
-          lockTimeOut: Number(process.env.REDLOCK_TIMEOUT) || 10000,
-          retryCount: Number(process.env.REDLOCK_RETRY_COUNT) || 3,
-          retryDelay: Number(process.env.REDLOCK_RETRY_DELAY) || 200,
-          retryJitter: Number(process.env.REDLOCK_RETRY_JITTER) || 200
-        }
-      };
+      const { IOCContainer } = require('koatty_container');
+      const app = IOCContainer.getApp();
+      if (app) {
+        const appConfig = app.config('Schedule') || {};
+        this.config = {
+          timezone: appConfig.timezone || process.env.KOATTY_SCHEDULE_TIMEZONE || 'Asia/Beijing',
+          RedLock: {
+            lockTimeOut: appConfig.lockTimeOut || Number(process.env.REDLOCK_TIMEOUT) || 10000,
+            retryCount: appConfig.retryCount || Number(process.env.REDLOCK_RETRY_COUNT) || 3,
+            retryDelay: appConfig.retryDelay || Number(process.env.REDLOCK_RETRY_DELAY) || 200,
+            retryJitter: appConfig.retryJitter || Number(process.env.REDLOCK_RETRY_JITTER) || 200
+          }
+        };
+      } else {
+        // Fallback to environment variables only
+        this.config = {
+          timezone: process.env.KOATTY_SCHEDULE_TIMEZONE || 'Asia/Beijing',
+          RedLock: {
+            lockTimeOut: Number(process.env.REDLOCK_TIMEOUT) || 10000,
+            retryCount: Number(process.env.REDLOCK_RETRY_COUNT) || 3,
+            retryDelay: Number(process.env.REDLOCK_RETRY_DELAY) || 200,
+            retryJitter: Number(process.env.REDLOCK_RETRY_JITTER) || 200
+          }
+        };
+      }
       
       this.loaded = true;
       logger.Debug('Configuration loaded from environment');
     } catch (_error) {
-      logger.Warn('Failed to load environment configuration:', _error);
+      logger.Debug('Using default configuration');
+      this.loaded = true;
     }
   }
 
   /**
-   * Merge user configuration with defaults
-   * @param userConfig - User provided configuration
-   */
-  mergeConfig(userConfig: ScheduleConfig): void {
-    this.config = {
-      ...this.config,
-      ...userConfig,
-      RedLock: {
-        ...this.config.RedLock,
-        ...userConfig.RedLock
-      }
-    };
-    logger.Debug('Configuration merged successfully');
-  }
-
-  /**
    * Get current configuration
-   * @returns Current configuration
    */
   getConfig(): ScheduleConfig {
     return { ...this.config };
   }
 
   /**
-   * Get RedLock configuration
-   * @returns RedLock configuration
+   * Merge custom configuration
    */
-  getRedLockConfig(): RedLockOptions {
-    return this.config.RedLock ? { ...this.config.RedLock } : {};
+  mergeConfig(customConfig: Partial<ScheduleConfig>): void {
+    this.config = {
+      ...this.config,
+      ...customConfig,
+      RedLock: {
+        ...this.config.RedLock,
+        ...customConfig.RedLock
+      }
+    };
   }
 
   /**
-   * Get timezone configuration
-   * @returns Timezone string
+   * Reset configuration to default
    */
-  getTimezone(): string {
-    return this.config.timezone || 'Asia/Beijing';
+  reset(): void {
+    this.config = {
+      timezone: 'Asia/Beijing',
+      RedLock: {
+        lockTimeOut: 10000,
+        retryCount: 3,
+        retryDelay: 200,
+        retryJitter: 200
+      }
+    };
+    this.loaded = false;
   }
 
   /**
    * Check if configuration is loaded
-   * @returns true if loaded, false otherwise
    */
   isLoaded(): boolean {
     return this.loaded;
   }
-
-  /**
-   * Validate cron expression
-   * @param cron - Cron expression to validate
-   * @returns true if valid
-   * @throws Error if invalid
-   */
-  validateCronExpression(cron: string): boolean {
-    if (!cron || typeof cron !== 'string') {
-      throw new Error('Cron expression must be a non-empty string');
-    }
-
-    // Basic cron validation - split into parts
-    const parts = cron.trim().split(/\s+/);
-    
-    if (parts.length !== 6) {
-      throw new Error('Cron expression must have exactly 6 parts: second minute hour day month dayOfWeek');
-    }
-
-    // Validate each part is not empty
-    for (let i = 0; i < parts.length; i++) {
-      if (!parts[i] || parts[i].trim() === '') {
-        throw new Error(`Cron expression part ${i + 1} cannot be empty`);
-      }
-    }
-
-    return true;
-  }
-
-  /**
-   * Validate RedLock options
-   * @param options - RedLock options to validate
-   * @returns Validated options
-   * @throws Error if invalid
-   */
-  validateRedLockOptions(options: RedLockOptions): RedLockOptions {
-    if (!options || typeof options !== 'object') {
-      throw new Error('RedLock options must be an object');
-    }
-
-    const validated: RedLockOptions = { ...options };
-
-    // Validate lockTimeOut
-    if (validated.lockTimeOut !== undefined) {
-      if (typeof validated.lockTimeOut !== 'number' || validated.lockTimeOut <= 0) {
-        throw new Error('lockTimeOut must be a positive number');
-      }
-      if (validated.lockTimeOut < 1000) {
-        logger.Warn('lockTimeOut is less than 1000ms, this may cause issues');
-      }
-    }
-
-    // Validate retryCount
-    if (validated.retryCount !== undefined) {
-      if (typeof validated.retryCount !== 'number' || validated.retryCount < 0) {
-        throw new Error('retryCount must be a non-negative number');
-      }
-    }
-
-    // Validate retryDelay
-    if (validated.retryDelay !== undefined) {
-      if (typeof validated.retryDelay !== 'number' || validated.retryDelay < 0) {
-        throw new Error('retryDelay must be a non-negative number');
-      }
-    }
-
-    return validated;
-  }
-
-  /**
-   * Reset configuration to defaults
-   */
-  reset(): void {
-    this.config = {};
-    this.loaded = false;
-    logger.Debug('Configuration reset to defaults');
-  }
 }
 
 /**
- * Legacy validation functions for backward compatibility
- */
-
-/**
- * Validate cron expression
+ * Validate cron expression format
  * @param cron - Cron expression to validate
- * @returns true if valid
- * @throws Error if invalid
+ * @throws {Error} When cron expression is invalid
  */
-export function validateCronExpression(cron: string): boolean {
-  const manager = ConfigManager.getInstance();
-  return manager.validateCronExpression(cron);
+export function validateCronExpression(cron: string): void {
+  if (!cron || typeof cron !== 'string') {
+    throw new Error('Cron expression must be a non-empty string');
+  }
+
+  const cronParts = cron.trim().split(/\s+/);
+  
+  // Cron expressions should have 5 or 6 parts (with or without seconds)
+  if (cronParts.length < 5 || cronParts.length > 6) {
+    throw new Error(`Invalid cron expression format. Expected 5 or 6 parts, got ${cronParts.length}`);
+  }
+
+  // For 6-part cron (with seconds), validate each part
+  if (cronParts.length === 6) {
+    const [seconds, minutes, hours, dayOfMonth, months, dayOfWeek] = cronParts;
+    
+    // Basic validation for obvious invalid values
+    if (!/^(\*|[0-9]|[0-5][0-9]|\*\/[0-9]+|[0-9]+-[0-9]+|[0-9]+(,[0-9]+)*)$/.test(seconds)) {
+      throw new Error('Invalid seconds field in cron expression');
+    }
+    if (!/^(\*|[0-9]|[0-5][0-9]|\*\/[0-9]+|[0-9]+-[0-9]+|[0-9]+(,[0-9]+)*)$/.test(minutes)) {
+      throw new Error('Invalid minutes field in cron expression');
+    }
+    if (!/^(\*|[0-9]|1[0-9]|2[0-3]|\*\/[0-9]+|[0-9]+-[0-9]+|[0-9]+(,[0-9]+)*)$/.test(hours)) {
+      throw new Error('Invalid hours field in cron expression');
+    }
+    
+    // Check for simple out-of-range values
+    const secondsValue = parseInt(seconds);
+    if (!isNaN(secondsValue) && (secondsValue < 0 || secondsValue > 59)) {
+      throw new Error('Seconds value must be between 0 and 59');
+    }
+  }
+  
+  // Additional basic checks for common invalid patterns
+  if (cron.includes('60')) {
+    // Check if 60 appears as a standalone number (not part of a larger number)
+    const parts = cron.split(/[\s,\-\/]/);
+    if (parts.some(part => part === '60')) {
+      throw new Error('Invalid time value: 60 is not valid for any time field');
+    }
+  }
 }
 
 /**
  * Validate RedLock options
  * @param options - RedLock options to validate
- * @returns Validated options
- * @throws Error if invalid
+ * @throws {Error} When options are invalid
  */
-export function validateRedLockOptions(options: RedLockOptions): RedLockOptions {
-  const manager = ConfigManager.getInstance();
-  return manager.validateRedLockOptions(options);
+export function validateRedLockOptions(options: RedLockOptions): void {
+  if (!options || typeof options !== 'object') {
+    throw new Error('RedLock options must be an object');
+  }
+
+  if (options.lockTimeOut !== undefined) {
+    if (typeof options.lockTimeOut !== 'number' || options.lockTimeOut <= 0) {
+      throw new Error('lockTimeOut must be a positive number');
+    }
+  }
+
+  if (options.retryCount !== undefined) {
+    if (typeof options.retryCount !== 'number' || options.retryCount < 0) {
+      throw new Error('retryCount must be a non-negative number');
+    }
+  }
+
+  if (options.retryDelay !== undefined) {
+    if (typeof options.retryDelay !== 'number' || options.retryDelay < 0) {
+      throw new Error('retryDelay must be a non-negative number');
+    }
+  }
+
+  if (options.retryJitter !== undefined) {
+    if (typeof options.retryJitter !== 'number' || options.retryJitter < 0) {
+      throw new Error('retryJitter must be a non-negative number');
+    }
+  }
 } 
