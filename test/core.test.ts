@@ -9,11 +9,36 @@
  */
 
 import { Scheduled, RedLock } from '../src/index';
-import { DecoratorManager, DecoratorType } from '../src/decorator/manager';
-import { ConfigManager } from '../src/config/config';
+import { MethodDecoratorManager } from 'koatty_container';
+import { ConfigManager, DecoratorType } from '../src/config/config';
 import { RedLocker } from '../src/locker/redlock';
 import { validateCronExpression, validateRedLockOptions } from '../src/config/config';
 import { timeoutPromise } from '../src/utils/lib';
+
+// 创建 MethodDecoratorManager 的 mock 实例
+const wrapperRegistryCore = new Map();
+const registeredTypesCore = new Set();
+
+const mockMethodDecoratorManager = {
+  registerWrapper: jest.fn().mockImplementation((type: string, wrapper: Function) => {
+    wrapperRegistryCore.set(type, wrapper);
+    registeredTypesCore.add(type);
+  }),
+  hasWrapper: jest.fn().mockImplementation((type: string) => wrapperRegistryCore.has(type)),
+  getRegisteredTypes: jest.fn().mockImplementation(() => Array.from(registeredTypesCore)),
+  registerDecorator: jest.fn().mockImplementation((target, propertyKey, metadata, descriptor) => descriptor),
+  unregisterWrapper: jest.fn().mockImplementation((type: string) => {
+    const existed = wrapperRegistryCore.has(type);
+    wrapperRegistryCore.delete(type);
+    registeredTypesCore.delete(type);
+    return existed;
+  }),
+  getCacheStats: jest.fn().mockReturnValue({ size: 0, keys: [] }),
+  clearCache: jest.fn().mockImplementation(() => {
+    wrapperRegistryCore.clear();
+    registeredTypesCore.clear();
+  })
+};
 
 // 模拟依赖
 jest.mock('koatty_container', () => ({
@@ -26,6 +51,9 @@ jest.mock('koatty_container', () => ({
       once: jest.fn(),
       config: () => ({ lockTimeOut: 5000 })
     })
+  },
+  MethodDecoratorManager: {
+    getInstance: jest.fn(() => mockMethodDecoratorManager)
   }
 }));
 
@@ -62,15 +90,22 @@ jest.mock('cron', () => ({
 }));
 
 describe('koatty_schedule Core Tests', () => {
-  
+
   // Reset singletons before each test
   beforeEach(() => {
     // Clear require cache for modules with singletons
     delete require.cache[require.resolve('../src/config/config')];
-    delete require.cache[require.resolve('../src/decorator/manager')];
+    delete require.cache[require.resolve('koatty_container')];
     delete require.cache[require.resolve('../src/locker/redlock')];
+    
+    // 重置所有的 mock
+    jest.clearAllMocks();
+    
+    // 重置wrapper registry
+    wrapperRegistryCore.clear();
+    registeredTypesCore.clear();
   });
-  
+
   describe('Configuration Management', () => {
     let configManager: ConfigManager;
 
@@ -113,85 +148,12 @@ describe('koatty_schedule Core Tests', () => {
         timezone: 'UTC',
         RedLock: { lockTimeOut: 8000 }
       };
-      
+
       configManager.mergeConfig(customConfig);
       const config = configManager.getConfig();
-      
+
       expect(config.timezone).toBe('UTC');
       expect(config.RedLock?.lockTimeOut).toBe(8000);
-    });
-  });
-
-  describe('Decorator Manager', () => {
-    let decoratorManager: DecoratorManager;
-
-    beforeEach(() => {
-      decoratorManager = new DecoratorManager();
-      decoratorManager.clearCache();
-    });
-
-    test('should create instance', () => {
-      expect(decoratorManager).toBeDefined();
-      expect(decoratorManager).toBeInstanceOf(DecoratorManager);
-    });
-
-    test('should register decorator metadata', () => {
-      const mockDescriptor = { value: jest.fn(), configurable: true, enumerable: false };
-      const decoratorMetadata = {
-        type: DecoratorType.SCHEDULED,
-        config: { cron: '0 * * * * *', timezone: 'UTC' },
-        applied: true,
-        priority: 1
-      };
-
-      const result = decoratorManager.registerDecorator(
-        {},
-        'testMethod',
-        decoratorMetadata,
-        mockDescriptor
-      );
-
-      expect(result).toBeDefined();
-      expect(typeof result.value).toBe('function');
-    });
-
-    test('should prevent duplicate decorator registration', () => {
-      const mockDescriptor = { value: jest.fn(), configurable: true, enumerable: false };
-      const decoratorMetadata = {
-        type: DecoratorType.REDLOCK,
-        config: { name: 'test', options: { lockTimeOut: 5000 } },
-        applied: true,
-        priority: 2
-      };
-
-      // First registration
-      decoratorManager.registerDecorator({}, 'testMethod', decoratorMetadata, mockDescriptor);
-      
-      // Second registration should be ignored
-      const result = decoratorManager.registerDecorator({}, 'testMethod', decoratorMetadata, mockDescriptor);
-      
-      expect(result).toBe(mockDescriptor);
-    });
-
-    test('should manage cache correctly', () => {
-      const initialStats = decoratorManager.getCacheStats();
-      expect(initialStats.size).toBe(0);
-
-      // Register some decorators to populate cache
-      const mockDescriptor = { value: jest.fn(), configurable: true, enumerable: false };
-      decoratorManager.registerDecorator({}, 'testMethod', {
-        type: DecoratorType.SCHEDULED,
-        config: { cron: '0 * * * * *' },
-        applied: true,
-        priority: 1
-      }, mockDescriptor);
-
-      const statsAfter = decoratorManager.getCacheStats();
-      expect(statsAfter.size).toBeGreaterThan(0);
-
-      decoratorManager.clearCache();
-      const statsAfterClear = decoratorManager.getCacheStats();
-      expect(statsAfterClear.size).toBe(0);
     });
   });
 
@@ -226,7 +188,7 @@ describe('koatty_schedule Core Tests', () => {
   });
 
   describe('Decorators', () => {
-    
+
     describe('@Scheduled', () => {
       test('should apply decorator with valid parameters', () => {
         class TestService {
@@ -322,7 +284,7 @@ describe('koatty_schedule Core Tests', () => {
   });
 
   describe('Utility Functions', () => {
-    
+
     describe('timeoutPromise', () => {
       test('should reject after specified timeout', async () => {
         const promise = timeoutPromise(100);
@@ -337,7 +299,7 @@ describe('koatty_schedule Core Tests', () => {
   });
 
   describe('Integration Tests', () => {
-    
+
     test('should handle complex service with multiple decorators', () => {
       class ComplexService {
         @Scheduled('0 */5 * * * *')

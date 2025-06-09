@@ -3,7 +3,8 @@
  * 详细验证方法是否被正确包装
  */
 
-import { RedLock, Scheduled, DecoratorManager } from "../src/index";
+import { MethodDecoratorManager } from "koatty_container";
+import { RedLock, Scheduled } from "../src/index";
 
 class VerificationService {
   
@@ -71,10 +72,9 @@ function verifyMethodWrapping() {
 
   // 通过DecoratorManager检查装饰器信息
   console.log("\n=== 装饰器元数据验证 ===");
-  const decoratorManager = DecoratorManager.getInstance();
+  const decoratorManager = MethodDecoratorManager.getInstance();
   
   console.log(`DecoratorManager缓存统计:`, decoratorManager.getCacheStats());
-  console.log(`DecoratorManager容器信息:`, decoratorManager.getContainerInfo());
   
   // 检查是否被标记为装饰
   console.log(`\n装饰标记检查:`);
