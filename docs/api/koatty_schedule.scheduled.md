@@ -4,13 +4,13 @@
 
 ## Scheduled() function
 
-Schedule task
+Schedule task decorator with optimized preprocessing
 
 
 **Signature:**
 
 ```typescript
-export declare function Scheduled(cron: string, _timezone?: string): MethodDecorator;
+export declare function Scheduled(cron: string, timezone?: string): MethodDecorator;
 ```
 
 ## Parameters
@@ -43,11 +43,13 @@ string
 
 </td><td>
 
+Cron expression for task scheduling
+
 
 </td></tr>
 <tr><td>
 
-\_timezone
+timezone
 
 
 </td><td>
@@ -57,7 +59,9 @@ string
 
 </td><td>
 
-_(Optional)_ \* Seconds: 0-59 \* Minutes: 0-59 \* Hours: 0-23 \* Day of Month: 1-31 \* Months: 1-12 (Jan-Dec) \* Day of Week: 1-7 (Sun-Sat)
+_(Optional)_ Timezone for the schedule
+
+Cron expression format: \* Seconds: 0-59 \* Minutes: 0-59 \* Hours: 0-23 \* Day of Month: 1-31 \* Months: 1-12 (Jan-Dec) \* Day of Week: 1-7 (Sun-Sat)
 
 
 </td></tr>
@@ -67,4 +71,8 @@ _(Optional)_ \* Seconds: 0-59 \* Minutes: 0-59 \* Hours: 0-23 \* Day of Month: 1
 MethodDecorator
 
 {<!-- -->MethodDecorator<!-- -->}
+
+## Exceptions
+
+{<!-- -->Error<!-- -->} When cron expression is invalid or decorator is used on wrong class type
 

@@ -2,7 +2,34 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-### [1.6.2](https://github.com/thinkkoa/koatty_schedule/compare/v1.6.0...v1.6.2) (2024-11-07)
+## [2.1.0](https://github.com/thinkkoa/koatty_schedule/compare/v2.0.1...v2.1.0) (2025-06-09)
+
+
+### Features
+
+* add schedule and redlock decorators with config management ([c1b5359](https://github.com/thinkkoa/koatty_schedule/commit/c1b535940df2b8a3403bf024137519246945870e))
+* enhance ConfigManager with singleton pattern, environment config loading ([00db6eb](https://github.com/thinkkoa/koatty_schedule/commit/00db6eb97bdae226aaf433b23c770704b33d05e8))
+* introduce DecoratorType enum, refactor decorator management system, ([e58e718](https://github.com/thinkkoa/koatty_schedule/commit/e58e718975e663820778352bedb6421e6852ba9f))
+
+
+### Bug Fixes
+
+* simplify error handling in ConfigManager and RedLocker ([7be75fc](https://github.com/thinkkoa/koatty_schedule/commit/7be75fc7f4160094b57ca64905df4c81f77adb51))
+
+
+### Refactor
+
+* use MethodDecoratorManager ([ff077c7](https://github.com/thinkkoa/koatty_schedule/commit/ff077c7211bb6cf258c6885e1d7dcbdacde90ef1))
+
+### [2.0.1](https://github.com/thinkkoa/koatty_schedule/compare/v2.0.0...v2.0.1) (2024-01-17)
+
+## [2.0.0](https://github.com/thinkkoa/koatty_schedule/compare/v1.6.0...v2.0.0) (2024-01-17)
+
+
+### Refactor
+
+* redlock ([beb7cd9](https://github.com/thinkkoa/koatty_schedule/commit/beb7cd90878319cb1c480f4ad11b2632c184872b))
+* redlock ([ea29337](https://github.com/thinkkoa/koatty_schedule/commit/ea29337052aee081322918914876a95923d314ae))
 
 ## [1.6.0](https://github.com/thinkkoa/koatty_schedule/compare/v1.5.11...v1.6.0) (2023-12-20)
 
