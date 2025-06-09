@@ -117,7 +117,7 @@ Configuration options for RedLock
 </td></tr>
 </tbody></table>
 
-Function
+## Variables
 
 <table><thead><tr><th>
 
