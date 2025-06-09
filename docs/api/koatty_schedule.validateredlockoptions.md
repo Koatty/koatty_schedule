@@ -9,22 +9,49 @@ Validate RedLock options
 **Signature:**
 
 ```typescript
-export declare function validateRedLockOptions(options: RedLockOptions): RedLockOptions;
+export declare function validateRedLockOptions(options: RedLockOptions): void;
 ```
 
 ## Parameters
 
-|  Parameter | Type | Description |
-|  --- | --- | --- |
-|  options | [RedLockOptions](./koatty_schedule.redlockoptions.md) | RedLock options to validate |
+<table><thead><tr><th>
 
-**Returns:**
+Parameter
+
+
+</th><th>
+
+Type
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+options
+
+
+</td><td>
 
 [RedLockOptions](./koatty_schedule.redlockoptions.md)
 
-Validated options
+
+</td><td>
+
+RedLock options to validate
+
+
+</td></tr>
+</tbody></table>
+**Returns:**
+
+void
 
 ## Exceptions
 
-Error if invalid
+{<!-- -->Error<!-- -->} When options are invalid
 

@@ -4,22 +4,66 @@
 
 ## RedLock() function
 
-Redis-based distributed lock decorator with optimized preprocessing
+RedLock decorator for distributed locking
 
 
 **Signature:**
 
 ```typescript
-export declare function RedLock(name?: string, options?: RedLockOptions): MethodDecorator;
+export declare function RedLock(lockName?: string, options?: RedLockOptions): MethodDecorator;
 ```
 
 ## Parameters
 
-|  Parameter | Type | Description |
-|  --- | --- | --- |
-|  name | string | _(Optional)_ The locker name. If name is duplicated, lock sharing contention will result. |
-|  options | [RedLockOptions](./koatty_schedule.redlockoptions.md) | <p>_(Optional)_ RedLock configuration options</p><p>Options: - lockTimeOut?: number - Lock timeout in milliseconds (default: 10000) - retryCount?: number - The max number of times Redlock will attempt to lock a resource (default: 3) - RedisOptions: RedisOptions - Redis connection configuration</p> |
+<table><thead><tr><th>
 
+Parameter
+
+
+</th><th>
+
+Type
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+lockName
+
+
+</td><td>
+
+string
+
+
+</td><td>
+
+_(Optional)_ Name of the lock, auto-generated if not provided
+
+
+</td></tr>
+<tr><td>
+
+options
+
+
+</td><td>
+
+[RedLockOptions](./koatty_schedule.redlockoptions.md)
+
+
+</td><td>
+
+_(Optional)_ Lock configuration options
+
+
+</td></tr>
+</tbody></table>
 **Returns:**
 
 MethodDecorator
@@ -28,5 +72,5 @@ MethodDecorator
 
 ## Exceptions
 
-{<!-- -->Error<!-- -->} When decorator is used on wrong class type or invalid configuration
+{<!-- -->Error<!-- -->} When decorator is used on wrong class type or invalid options
 

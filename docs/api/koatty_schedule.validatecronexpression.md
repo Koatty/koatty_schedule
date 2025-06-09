@@ -4,27 +4,54 @@
 
 ## validateCronExpression() function
 
-Validate cron expression
+Validate cron expression format
 
 **Signature:**
 
 ```typescript
-export declare function validateCronExpression(cron: string): boolean;
+export declare function validateCronExpression(cron: string): void;
 ```
 
 ## Parameters
 
-|  Parameter | Type | Description |
-|  --- | --- | --- |
-|  cron | string | Cron expression to validate |
+<table><thead><tr><th>
 
+Parameter
+
+
+</th><th>
+
+Type
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+cron
+
+
+</td><td>
+
+string
+
+
+</td><td>
+
+Cron expression to validate
+
+
+</td></tr>
+</tbody></table>
 **Returns:**
 
-boolean
-
-true if valid
+void
 
 ## Exceptions
 
-Error if invalid
+{<!-- -->Error<!-- -->} When cron expression is invalid
 

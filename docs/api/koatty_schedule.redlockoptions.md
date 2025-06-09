@@ -15,10 +15,101 @@ export interface RedLockOptions extends Partial<Settings>
 
 ## Properties
 
-|  Property | Modifiers | Type | Description |
-|  --- | --- | --- | --- |
-|  [clockDriftFactor?](./koatty_schedule.redlockoptions.clockdriftfactor.md) |  | number | _(Optional)_ |
-|  [lockTimeOut?](./koatty_schedule.redlockoptions.locktimeout.md) |  | number | _(Optional)_ |
-|  [maxRetries?](./koatty_schedule.redlockoptions.maxretries.md) |  | number | _(Optional)_ |
-|  [retryDelayMs?](./koatty_schedule.redlockoptions.retrydelayms.md) |  | number | _(Optional)_ |
+<table><thead><tr><th>
 
+Property
+
+
+</th><th>
+
+Modifiers
+
+
+</th><th>
+
+Type
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+[clockDriftFactor?](./koatty_schedule.redlockoptions.clockdriftfactor.md)
+
+
+</td><td>
+
+
+</td><td>
+
+number
+
+
+</td><td>
+
+_(Optional)_
+
+
+</td></tr>
+<tr><td>
+
+[lockTimeOut?](./koatty_schedule.redlockoptions.locktimeout.md)
+
+
+</td><td>
+
+
+</td><td>
+
+number
+
+
+</td><td>
+
+_(Optional)_
+
+
+</td></tr>
+<tr><td>
+
+[maxRetries?](./koatty_schedule.redlockoptions.maxretries.md)
+
+
+</td><td>
+
+
+</td><td>
+
+number
+
+
+</td><td>
+
+_(Optional)_
+
+
+</td></tr>
+<tr><td>
+
+[retryDelayMs?](./koatty_schedule.redlockoptions.retrydelayms.md)
+
+
+</td><td>
+
+
+</td><td>
+
+number
+
+
+</td><td>
+
+_(Optional)_
+
+
+</td></tr>
+</tbody></table>

@@ -15,11 +15,57 @@ export declare function Scheduled(cron: string, timezone?: string): MethodDecora
 
 ## Parameters
 
-|  Parameter | Type | Description |
-|  --- | --- | --- |
-|  cron | string | Cron expression for task scheduling |
-|  timezone | string | <p>_(Optional)_ Timezone for the schedule</p><p>Cron expression format: \* Seconds: 0-59 \* Minutes: 0-59 \* Hours: 0-23 \* Day of Month: 1-31 \* Months: 1-12 (Jan-Dec) \* Day of Week: 1-7 (Sun-Sat)</p> |
+<table><thead><tr><th>
 
+Parameter
+
+
+</th><th>
+
+Type
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+cron
+
+
+</td><td>
+
+string
+
+
+</td><td>
+
+Cron expression for task scheduling
+
+
+</td></tr>
+<tr><td>
+
+timezone
+
+
+</td><td>
+
+string
+
+
+</td><td>
+
+_(Optional)_ Timezone for the schedule
+
+Cron expression format: \* Seconds: 0-59 \* Minutes: 0-59 \* Hours: 0-23 \* Day of Month: 1-31 \* Months: 1-12 (Jan-Dec) \* Day of Week: 1-7 (Sun-Sat)
+
+
+</td></tr>
+</tbody></table>
 **Returns:**
 
 MethodDecorator

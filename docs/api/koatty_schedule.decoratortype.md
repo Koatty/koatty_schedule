@@ -14,8 +14,48 @@ export declare enum DecoratorType
 
 ## Enumeration Members
 
-|  Member | Value | Description |
-|  --- | --- | --- |
-|  REDLOCK | <code>&quot;REDLOCK&quot;</code> |  |
-|  SCHEDULED | <code>&quot;SCHEDULED&quot;</code> |  |
+<table><thead><tr><th>
 
+Member
+
+
+</th><th>
+
+Value
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+REDLOCK
+
+
+</td><td>
+
+`"REDLOCK"`
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+SCHEDULED
+
+
+</td><td>
+
+`"SCHEDULED"`
+
+
+</td><td>
+
+
+</td></tr>
+</tbody></table>
