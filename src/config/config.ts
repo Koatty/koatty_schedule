@@ -65,7 +65,7 @@ export class ConfigManager {
         args: []
       });
       logger.Debug('ConfigManager registered in IOC container');
-    } catch (_error) {
+    } catch {
       logger.Debug('IOC container not available, continuing without registration');
     }
   }
@@ -113,7 +113,7 @@ export class ConfigManager {
       
       this.loaded = true;
       logger.Debug('Configuration loaded from environment');
-    } catch (_error) {
+    } catch {
       logger.Debug('Using default configuration');
       this.loaded = true;
     }
@@ -183,7 +183,7 @@ export function validateCronExpression(cron: string): void {
 
   // For 6-part cron (with seconds), validate each part
   if (cronParts.length === 6) {
-    const [seconds, minutes, hours, dayOfMonth, months, dayOfWeek] = cronParts;
+    const [seconds, minutes, hours] = cronParts;
     
     // Basic validation for obvious invalid values
     if (!/^(\*|[0-9]|[0-5][0-9]|\*\/[0-9]+|[0-9]+-[0-9]+|[0-9]+(,[0-9]+)*)$/.test(seconds)) {

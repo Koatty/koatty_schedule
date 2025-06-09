@@ -112,7 +112,7 @@ export class RedLocker {
         instance = new RedLocker(options, redisConfig);
       }
       return instance;
-    } catch (error) {
+    } catch {
       logger.Debug('Creating new RedLocker instance outside IOC container');
       return new RedLocker(options, redisConfig);
     }
