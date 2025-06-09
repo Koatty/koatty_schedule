@@ -83,7 +83,7 @@
     "@sesamecare-oss/redlock": "^1.2.0",
     "cron": "^4.3.1",
     "ioredis": "^5.6.1",
-    "koatty_container": "^1.x.x",
+    "koatty_container": "^1.14.1",
     "koatty_lib": "^1.x.x",
     "koatty_logger": "^2.x.x",
     "koatty_store": "^1.x.x"

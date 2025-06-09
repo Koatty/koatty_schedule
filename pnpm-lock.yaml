@@ -18,16 +18,16 @@ importers:
         specifier: ^5.6.1
         version: 5.6.1
       koatty_container:
-        specifier: ^1.x.x
-        version: 1.13.0(koatty_lib@1.4.3)(koatty_logger@2.3.0(koatty_lib@1.4.3)(tslib@2.8.1))
+        specifier: ^1.14.1
+        version: 1.14.1(koatty_lib@1.4.3)(koatty_logger@2.3.0(koatty_lib@1.4.3)(tslib@2.8.1))
       koatty_lib:
-        specifier: ^1.4.3
+        specifier: ^1.x.x
         version: 1.4.3
       koatty_logger:
-        specifier: ^2.3.0
+        specifier: ^2.x.x
         version: 2.3.0(koatty_lib@1.4.3)(tslib@2.8.1)
       koatty_store:
-        specifier: ^1.8.0
+        specifier: ^1.x.x
         version: 1.8.0(koatty_lib@1.4.3)(koatty_logger@2.3.0(koatty_lib@1.4.3)(tslib@2.8.1))
     devDependencies:
       '@commitlint/cli':
@@ -51,6 +51,9 @@ importers:
       '@types/koa':
         specifier: ^2.x.x
         version: 2.15.0
+      '@types/lodash':
+        specifier: ^4.17.17
+        version: 4.17.17
       '@types/node':
         specifier: ^22.x.x
         version: 22.15.30
@@ -792,6 +795,9 @@ packages:
 
   '@types/koa@2.15.0':
     resolution: {integrity: sha512-7QFsywoE5URbuVnG3loe03QXuGajrnotr3gQkXcEBShORai23MePfFYdhz90FEtBBpkyIYQbVD+evKtloCgX3g==}
+
+  '@types/lodash@4.17.17':
+    resolution: {integrity: sha512-RRVJ+J3J+WmyOTqnz3PiBLA501eKwXl2noseKOrNo/6+XEHjTAxO4xHvxQB6QuNm+s4WRbn6rSiap8+EA+ykFQ==}
 
   '@types/luxon@3.6.2':
     resolution: {integrity: sha512-R/BdP7OxEMc44l2Ex5lSXHoIXTB2JLNa3y2QISIbr58U/YcsffyQrYW//hZSdrfxrjRZj3GcUoxMPGdO8gSYuw==}
@@ -2162,8 +2168,8 @@ packages:
     resolution: {integrity: sha512-eTIzlVOSUR+JxdDFepEYcBMtZ9Qqdef+rnzWdRZuMbOywu5tO2w2N7rqjoANZ5k9vywhL6Br1VRjUIgTQx4E8w==}
     engines: {node: '>=6'}
 
-  koatty_container@1.13.0:
-    resolution: {integrity: sha512-zrQcUAlu4A0Gr4AteeuCJhoJ4sybIQKwSjurtWjKt/BG95bGSIzyf7X00wo6uCFMoHi3wbEvOXsPuuoshDFbWA==}
+  koatty_container@1.14.1:
+    resolution: {integrity: sha512-n4CJBeWiBjy3/Iwma+BzBsp9drUmZWKlgeGPBihMedNOu/l3Ej3r4YXP8tK6jQTy2JvTF5C7pXsFONe9y7gD4A==}
     engines: {node: '>10.0.0'}
     peerDependencies:
       koatty_lib: ^1.x.x
@@ -4035,6 +4041,8 @@ snapshots:
       '@types/koa-compose': 3.2.8
       '@types/node': 22.15.30
 
+  '@types/lodash@4.17.17': {}
+
   '@types/luxon@3.6.2': {}
 
   '@types/mime@1.3.5': {}
@@ -5701,7 +5709,7 @@ snapshots:
 
   kleur@3.0.3: {}
 
-  koatty_container@1.13.0(koatty_lib@1.4.3)(koatty_logger@2.3.0(koatty_lib@1.4.3)(tslib@2.8.1)):
+  koatty_container@1.14.1(koatty_lib@1.4.3)(koatty_logger@2.3.0(koatty_lib@1.4.3)(tslib@2.8.1)):
     dependencies:
       koatty_lib: 1.4.3
       koatty_logger: 2.3.0(koatty_lib@1.4.3)(tslib@2.8.1)
