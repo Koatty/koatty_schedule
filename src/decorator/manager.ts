@@ -10,41 +10,26 @@
 
 import { DefaultLogger as logger } from "koatty_logger";
 import { IOCContainer } from "koatty_container";
-import { RedLockOptions } from "../locker/redlock";
-import { redLockerDescriptor } from "../process/schedule";
+
 
 /**
- * Decorator types supported by the system
+ * Simple wrapper function type
  */
-export enum DecoratorType {
-  SCHEDULED = 'SCHEDULED',
-  REDLOCK = 'REDLOCK'
-}
+export type WrapperFunction = (
+  originalMethod: Function, 
+  config: any, 
+  methodName: string, 
+  target: unknown
+) => Function;
 
 /**
  * Decorator metadata interface
  */
 export interface DecoratorMetadata {
-  type: DecoratorType;
-  config: ScheduledConfig | RedLockConfig;
+  type: string;
+  config: object;
   applied: boolean;
   priority: number;
-}
-
-/**
- * Scheduled decorator configuration
- */
-export interface ScheduledConfig {
-  cron: string;
-  timezone?: string;
-}
-
-/**
- * RedLock decorator configuration  
- */
-export interface RedLockConfig {
-  name?: string;
-  options?: RedLockOptions;
 }
 
 /**
@@ -53,7 +38,7 @@ export interface RedLockConfig {
 interface MethodWrapper {
   originalMethod: Function;
   wrappedMethod: Function;
-  decorators: Map<DecoratorType, DecoratorMetadata>;
+  decorators: Map<string, DecoratorMetadata>;
   isWrapped: boolean;
 }
 
@@ -68,13 +53,52 @@ export class DecoratorManager {
   // Cache for compiled wrapper functions
   private wrapperCache = new Map<string, Function>();
   
+  // Registry of wrapper functions by decorator type
+  private wrapperRegistry = new Map<string, WrapperFunction>();
+  
   // Symbols for marking decorated methods
-  private static readonly DECORATED_SYMBOL = Symbol('koatty_schedule_decorated');
-  private static readonly METADATA_SYMBOL = Symbol('koatty_schedule_metadata');
+  private static readonly DECORATED_SYMBOL = Symbol('koatty_decorated');
+  private static readonly METADATA_SYMBOL = Symbol('koatty_metadata');
 
   constructor() {
     // Register this instance in IOC container
     this.registerInContainer();
+  }
+
+  /**
+   * Register a wrapper function for a decorator type
+   * @param decoratorType - The decorator type (string)
+   * @param wrapperFunction - The wrapper function
+   */
+  public registerWrapper(decoratorType: string, wrapperFunction: WrapperFunction): void {
+    this.wrapperRegistry.set(decoratorType, wrapperFunction);
+    logger.Debug(`Registered wrapper for decorator type: ${decoratorType}`);
+  }
+
+  /**
+   * Unregister a wrapper function
+   * @param decoratorType - The decorator type to unregister
+   */
+  public unregisterWrapper(decoratorType: string): boolean {
+    const removed = this.wrapperRegistry.delete(decoratorType);
+    if (removed) {
+      logger.Debug(`Unregistered wrapper for decorator type: ${decoratorType}`);
+    }
+    return removed;
+  }
+
+  /**
+   * Get all registered wrapper types
+   */
+  public getRegisteredTypes(): string[] {
+    return Array.from(this.wrapperRegistry.keys());
+  }
+
+  /**
+   * Check if a wrapper is registered for the given type
+   */
+  public hasWrapper(decoratorType: string): boolean {
+    return this.wrapperRegistry.has(decoratorType);
   }
 
   /**
@@ -90,7 +114,7 @@ export class DecoratorManager {
       });
       logger.Debug('DecoratorManager registered in IOC container');
     } catch (_error) {
-      logger.Warn('Failed to register DecoratorManager in IOC container:', _error);
+      logger.Debug('IOC container not available, continuing without registration');
     }
   }
 
@@ -108,7 +132,7 @@ export class DecoratorManager {
         instance = new DecoratorManager();
       }
       return instance;
-    } catch (error) {
+    } catch (_error) {
       logger.Debug('Creating new DecoratorManager instance outside IOC container');
       return new DecoratorManager();
     }
@@ -186,14 +210,14 @@ export class DecoratorManager {
     const cacheKey = this.generateCacheKey(decorators, propertyKey);
     
     // Check if we have a cached wrapper for this combination
-          const cachedWrapper = this.wrapperCache.get(cacheKey);
-      if (cachedWrapper) {
+    const cachedWrapper = this.wrapperCache.get(cacheKey);
+    if (cachedWrapper) {
       logger.Debug(`Using cached wrapper for ${propertyKey}`);
       return cachedWrapper.bind(target);
     }
 
     // Create new optimized wrapper
-    const optimizedWrapper = this.compileWrapper(wrapper.originalMethod, decorators, propertyKey, wrapper);
+    const optimizedWrapper = this.compileWrapper(wrapper.originalMethod, decorators, propertyKey, target);
     
     // Cache the wrapper for future use
     this.wrapperCache.set(cacheKey, optimizedWrapper);
@@ -208,82 +232,37 @@ export class DecoratorManager {
    * @param originalMethod - Original method
    * @param decorators - Applied decorators
    * @param methodName - Method name for debugging
-   * @param wrapper - Method wrapper information
+   * @param target - Target object
    * @returns Compiled wrapper function
    */
-  private compileWrapper(originalMethod: Function, decorators: DecoratorMetadata[], methodName: string, wrapper: MethodWrapper): Function {
-    const hasScheduled = decorators.some(d => d.type === DecoratorType.SCHEDULED);
-    const hasRedLock = decorators.some(d => d.type === DecoratorType.REDLOCK);
-
-    if (hasRedLock && hasScheduled) {
-      // Combined wrapper for both scheduled and redlock
-      return this.createCombinedWrapper(originalMethod, decorators, methodName, wrapper);
-    } else if (hasRedLock) {
-      // RedLock only wrapper using redLockerDescriptor
-      return this.createRedLockWrapper(originalMethod, decorators.find(d => d.type === DecoratorType.REDLOCK)!, methodName, wrapper);
-    } else if (hasScheduled) {
-      // Scheduled only wrapper (no wrapping needed at runtime, handled at registration)
+  private compileWrapper(originalMethod: Function, decorators: DecoratorMetadata[], methodName: string, target: unknown): Function {
+    if (decorators.length === 0) {
       return originalMethod;
     }
 
-    return originalMethod;
-  }
+    // Apply wrappers in chain, starting with the original method
+    let wrappedMethod = originalMethod;
 
-  /**
-   * Create a combined wrapper for methods with both @Scheduled and @RedLock
-   * @param originalMethod - Original method
-   * @param decorators - Applied decorators
-   * @param methodName - Method name
-   * @param wrapper - Method wrapper information
-   * @returns Combined wrapper function
-   */
-  private createCombinedWrapper(originalMethod: Function, decorators: DecoratorMetadata[], methodName: string, _wrapper: MethodWrapper): Function {
-    const redlockDecorator = decorators.find(d => d.type === DecoratorType.REDLOCK);
-    if (!redlockDecorator) {
-      return originalMethod;
+    // Apply decorators in reverse order so higher priority decorators wrap the others
+    for (const decorator of decorators.reverse()) {
+      const decoratorType = decorator.type.toString();
+      const wrapperFunction = this.wrapperRegistry.get(decoratorType);
+      
+      if (!wrapperFunction) {
+        logger.Warn(`No wrapper function registered for decorator type: ${decoratorType}`);
+        continue;
+      }
+
+      try {
+        wrappedMethod = wrapperFunction(wrappedMethod, decorator.config, methodName, target);
+        logger.Debug(`Applied wrapper for ${decoratorType} to method ${methodName}`);
+      } catch (error) {
+        logger.Error(`Failed to apply wrapper for ${decoratorType} to method ${methodName}:`, error);
+        // Continue with the current wrapped method, don't fail the entire chain
+      }
     }
 
-    const config = redlockDecorator.config as RedLockConfig;
-    
-    // Use redLockerDescriptor for the combined wrapper as well
-    const originalDescriptor: PropertyDescriptor = {
-      value: originalMethod,
-      writable: true,
-      enumerable: false,
-      configurable: true
-    };
-
-    const lockName = config.name || `combined_${methodName}`;
-    const enhancedDescriptor = redLockerDescriptor(originalDescriptor, lockName, methodName, config.options);
-    
-    return enhancedDescriptor.value!;
-  }
-
-  /**
-   * Create a RedLock-only wrapper using the complete redLockerDescriptor
-   * @param originalMethod - Original method
-   * @param decorator - RedLock decorator metadata
-   * @param methodName - Method name
-   * @param wrapper - Method wrapper information
-   * @returns RedLock wrapper function
-   */
-  private createRedLockWrapper(originalMethod: Function, decorator: DecoratorMetadata, methodName: string, _wrapper: MethodWrapper): Function {
-    const config = decorator.config as RedLockConfig;
-    
-    // Create property descriptor for redLockerDescriptor
-    const originalDescriptor: PropertyDescriptor = {
-      value: originalMethod,
-      writable: true,
-      enumerable: false,
-      configurable: true
-    };
-
-    const lockName = config.name || `redlock_${methodName}`;
-    
-    // Use the complete redLockerDescriptor function
-    const enhancedDescriptor = redLockerDescriptor(originalDescriptor, lockName, methodName, config.options);
-    
-    return enhancedDescriptor.value!;
+    return wrappedMethod;
   }
 
   /**
@@ -306,7 +285,7 @@ export class DecoratorManager {
    * @param method - Method to mark
    * @param decorators - Applied decorators
    */
-  private markAsDecorated(method: Function, decorators: Map<DecoratorType, DecoratorMetadata>): void {
+  private markAsDecorated(method: Function, decorators: Map<string, DecoratorMetadata>): void {
     // Check if already marked, if not, mark it
     if (!Object.prototype.hasOwnProperty.call(method, DecoratorManager.DECORATED_SYMBOL)) {
       Object.defineProperty(method, DecoratorManager.DECORATED_SYMBOL, {
@@ -340,7 +319,7 @@ export class DecoratorManager {
    * @param method - Method to check
    * @returns Decorator metadata map
    */
-  getDecoratorMetadata(method: Function): Map<DecoratorType, DecoratorMetadata> | null {
+  getDecoratorMetadata(method: Function): Map<string, DecoratorMetadata> | null {
     return (method as any)[DecoratorManager.METADATA_SYMBOL] || null;
   }
 
@@ -361,24 +340,5 @@ export class DecoratorManager {
       size: this.wrapperCache.size,
       keys: Array.from(this.wrapperCache.keys())
     };
-  }
-
-  /**
-   * Get container registration status
-   * @returns Registration information
-   */
-  getContainerInfo(): { registered: boolean; identifier: string } {
-    try {
-      const instance = IOCContainer.get('DecoratorManager', 'COMPONENT');
-      return {
-        registered: !!instance,
-        identifier: 'DecoratorManager'
-      };
-    } catch {
-      return {
-        registered: false,
-        identifier: 'DecoratorManager'
-      };
-    }
   }
 } 

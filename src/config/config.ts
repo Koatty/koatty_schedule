@@ -20,6 +20,15 @@ export interface ScheduleConfig {
 }
 
 /**
+ * Decorator types supported by the system
+ */
+export enum DecoratorType {
+  SCHEDULED = 'SCHEDULED',
+  REDLOCK = 'REDLOCK'
+}
+
+
+/**
  * Configuration manager for koatty_schedule
  * Integrated with koatty IOC container
  */

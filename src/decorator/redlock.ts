@@ -8,95 +8,20 @@
  * @Copyright (c): <richenlin(at)gmail.com>
  */
 
-import { Helper } from "koatty_lib";
-import { initRedLock } from "../process/schedule";
-import { validateCronExpression, validateRedLockOptions } from "../config/config";
-import { DecoratorManager, DecoratorType, DecoratorMetadata, ScheduledConfig, RedLockConfig } from "./manager";
-import { injectSchedule } from "../process/schedule";
-import { RedLockOptions } from "../locker/redlock";
 import { IOCContainer } from "koatty_container";
+import { RedLockOptions } from "../locker/redlock";
+import { Helper } from "koatty_lib";
+import { DecoratorManager, DecoratorMetadata } from "./manager";
+import { validateRedLockOptions, DecoratorType } from "../config/config";
+import { initRedLock, redLockerDescriptor } from "../process/locker";
+
 
 /**
- * Schedule task decorator with optimized preprocessing
- *
- * @export
- * @param {string} cron - Cron expression for task scheduling
- * @param {string} [timezone='Asia/Beijing'] - Timezone for the schedule
- * 
- * Cron expression format:
- * * Seconds: 0-59
- * * Minutes: 0-59
- * * Hours: 0-23
- * * Day of Month: 1-31
- * * Months: 1-12 (Jan-Dec)
- * * Day of Week: 1-7 (Sun-Sat)
- * 
- * @returns {MethodDecorator}
- * @throws {Error} When cron expression is invalid or decorator is used on wrong class type
+ * RedLock decorator configuration  
  */
-export function Scheduled(cron: string, timezone = 'Asia/Beijing'): MethodDecorator {
-  // 参数验证
-  if (Helper.isEmpty(cron)) {
-    throw Error("Cron expression is required and cannot be empty");
-  }
-
-  // 验证cron表达式格式
-  try {
-    validateCronExpression(cron);
-  } catch (error) {
-    throw Error(`Invalid cron expression: ${(error as Error).message}`);
-  }
-
-  // 验证时区
-  if (timezone && typeof timezone !== 'string') {
-    throw Error("Timezone must be a string");
-  }
-
-  return (target: unknown, propertyKey: string, descriptor: PropertyDescriptor) => {
-    // 验证装饰器使用的类型
-    const targetObj = target as object | Function;
-    const componentType = IOCContainer.getType(targetObj);
-    if (componentType !== "SERVICE" && componentType !== "COMPONENT") {
-      throw Error("@Scheduled decorator can only be used on SERVICE or COMPONENT classes.");
-    }
-
-    // 验证方法名
-    if (!propertyKey || typeof propertyKey !== 'string') {
-      throw Error("Method name is required for @Scheduled decorator");
-    }
-
-    // 验证方法描述符
-    if (!descriptor || typeof descriptor.value !== 'function') {
-      throw Error("@Scheduled decorator can only be applied to methods");
-    }
-
-    try {
-      // 使用装饰器管理器进行预处理
-      const decoratorManager = DecoratorManager.getInstance();
-
-      const decoratorMetadata: DecoratorMetadata = {
-        type: DecoratorType.SCHEDULED,
-        config: { cron, timezone } as ScheduledConfig,
-        applied: true,
-        priority: 1 // Lower priority than RedLock
-      };
-
-      // 注册装饰器 - 这会处理重复检查和优化
-      const processedDescriptor = decoratorManager.registerDecorator(
-        target,
-        propertyKey,
-        decoratorMetadata,
-        descriptor
-      );
-
-      // 注入计划任务 - 这个操作只在应用启动时进行一次
-      injectSchedule(target, propertyKey, cron, timezone);
-
-      return processedDescriptor;
-    } catch (error) {
-      throw Error(`Failed to inject schedule for ${propertyKey}: ${(error as Error).message}`);
-    }
-  };
+export interface RedLockConfig {
+  name?: string;
+  options?: RedLockOptions;
 }
 
 /**
@@ -159,6 +84,23 @@ export function RedLock(name?: string, options?: RedLockOptions): MethodDecorato
       // 使用装饰器管理器进行预处理
       const decoratorManager = DecoratorManager.getInstance();
 
+      // Register wrapper for RedLock decorator if not already registered
+      if (!decoratorManager.hasWrapper(DecoratorType.REDLOCK)) {
+        decoratorManager.registerWrapper(DecoratorType.REDLOCK, (originalMethod, config: RedLockConfig, methodName) => {
+          const originalDescriptor: PropertyDescriptor = {
+            value: originalMethod,
+            writable: true,
+            enumerable: false,
+            configurable: true
+          };
+
+          const lockName = config.name || `redlock_${methodName}`;
+          const enhancedDescriptor = redLockerDescriptor(originalDescriptor, lockName, methodName, config.options);
+
+          return enhancedDescriptor.value!;
+        });
+      }
+
       const decoratorMetadata: DecoratorMetadata = {
         type: DecoratorType.REDLOCK,
         config: { name: lockName, options } as RedLockConfig,
@@ -173,6 +115,8 @@ export function RedLock(name?: string, options?: RedLockOptions): MethodDecorato
         decoratorMetadata,
         descriptor
       );
+
+
 
       // 初始化RedLock - 只在应用启动时进行一次
       initRedLock();
