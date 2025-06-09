@@ -4,7 +4,7 @@
 
 ## Scheduled() function
 
-Schedule task
+Schedule task decorator with optimized preprocessing
 
 
 **Signature:**
@@ -17,12 +17,16 @@ export declare function Scheduled(cron: string, timezone?: string): MethodDecora
 
 |  Parameter | Type | Description |
 |  --- | --- | --- |
-|  cron | string |  |
-|  timezone | string | _(Optional)_ \* Seconds: 0-59 \* Minutes: 0-59 \* Hours: 0-23 \* Day of Month: 1-31 \* Months: 1-12 (Jan-Dec) \* Day of Week: 1-7 (Sun-Sat) |
+|  cron | string | Cron expression for task scheduling |
+|  timezone | string | <p>_(Optional)_ Timezone for the schedule</p><p>Cron expression format: \* Seconds: 0-59 \* Minutes: 0-59 \* Hours: 0-23 \* Day of Month: 1-31 \* Months: 1-12 (Jan-Dec) \* Day of Week: 1-7 (Sun-Sat)</p> |
 
 **Returns:**
 
 MethodDecorator
 
 {<!-- -->MethodDecorator<!-- -->}
+
+## Exceptions
+
+{<!-- -->Error<!-- -->} When cron expression is invalid or decorator is used on wrong class type
 

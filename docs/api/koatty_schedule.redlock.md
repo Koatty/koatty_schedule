@@ -4,7 +4,7 @@
 
 ## RedLock() function
 
-Redis-based distributed locks. Redis server config from db.ts.
+Redis-based distributed lock decorator with optimized preprocessing
 
 
 **Signature:**
@@ -18,11 +18,15 @@ export declare function RedLock(name?: string, options?: RedLockOptions): Method
 |  Parameter | Type | Description |
 |  --- | --- | --- |
 |  name | string | _(Optional)_ The locker name. If name is duplicated, lock sharing contention will result. |
-|  options | RedLockOptions | <p>_(Optional)_ lockTimeOut ?: number; lock a resource times</p><p>retryCount ?: number; The max number of times Redlock will attempt to lock a resource</p><p>RedisOptions: RedisOptions; redis config</p> |
+|  options | [RedLockOptions](./koatty_schedule.redlockoptions.md) | <p>_(Optional)_ RedLock configuration options</p><p>Options: - lockTimeOut?: number - Lock timeout in milliseconds (default: 10000) - retryCount?: number - The max number of times Redlock will attempt to lock a resource (default: 3) - RedisOptions: RedisOptions - Redis connection configuration</p> |
 
 **Returns:**
 
 MethodDecorator
 
 {<!-- -->MethodDecorator<!-- -->}
+
+## Exceptions
+
+{<!-- -->Error<!-- -->} When decorator is used on wrong class type or invalid configuration
 

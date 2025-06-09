@@ -4,10 +4,39 @@
 
 ## koatty\_schedule package
 
+## Classes
+
+|  Class | Description |
+|  --- | --- |
+|  [DecoratorManager](./koatty_schedule.decoratormanager.md) | Decorator manager for preprocessing and performance optimization Integrated with koatty IOC container |
+
+## Enumerations
+
+|  Enumeration | Description |
+|  --- | --- |
+|  [DecoratorType](./koatty_schedule.decoratortype.md) | Decorator types supported by the system |
+
 ## Functions
 
 |  Function | Description |
 |  --- | --- |
-|  [RedLock(name, options)](./koatty_schedule.redlock.md) | <p>Redis-based distributed locks. Redis server config from db.ts.</p> |
-|  [Scheduled(cron, timezone)](./koatty_schedule.scheduled.md) | <p>Schedule task</p> |
+|  [RedLock(name, options)](./koatty_schedule.redlock.md) | <p>Redis-based distributed lock decorator with optimized preprocessing</p> |
+|  [Scheduled(cron, timezone)](./koatty_schedule.scheduled.md) | <p>Schedule task decorator with optimized preprocessing</p> |
+|  [validateCronExpression(cron)](./koatty_schedule.validatecronexpression.md) | Validate cron expression |
+|  [validateRedLockOptions(options)](./koatty_schedule.validateredlockoptions.md) | Validate RedLock options |
+
+## Interfaces
+
+|  Interface | Description |
+|  --- | --- |
+|  [DecoratorMetadata](./koatty_schedule.decoratormetadata.md) | Decorator metadata interface |
+|  [RedLockConfig](./koatty_schedule.redlockconfig.md) | RedLock decorator configuration |
+|  [RedLockOptions](./koatty_schedule.redlockoptions.md) | Configuration options for RedLock |
+|  [ScheduledConfig](./koatty_schedule.scheduledconfig.md) | Scheduled decorator configuration |
+
+## Variables
+
+|  Variable | Description |
+|  --- | --- |
+|  [SchedulerLock](./koatty_schedule.schedulerlock.md) |  |
 
