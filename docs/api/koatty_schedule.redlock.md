@@ -4,7 +4,7 @@
 
 ## RedLock() function
 
-RedLock decorator for distributed locking
+Redis-based distributed lock decorator with optimized preprocessing
 
 
 **Signature:**
@@ -43,7 +43,7 @@ string
 
 </td><td>
 
-_(Optional)_ Name of the lock, auto-generated if not provided
+_(Optional)_
 
 
 </td></tr>
@@ -59,7 +59,9 @@ options
 
 </td><td>
 
-_(Optional)_ Lock configuration options
+_(Optional)_ RedLock configuration options
+
+Options: - lockTimeOut?: number - Lock timeout in milliseconds (default: 10000) - retryCount?: number - The max number of times Redlock will attempt to lock a resource (default: 3) - RedisOptions: RedisOptions - Redis connection configuration
 
 
 </td></tr>
@@ -72,5 +74,5 @@ MethodDecorator
 
 ## Exceptions
 
-{<!-- -->Error<!-- -->} When decorator is used on wrong class type or invalid options
+{<!-- -->Error<!-- -->} When decorator is used on wrong class type or invalid configuration
 

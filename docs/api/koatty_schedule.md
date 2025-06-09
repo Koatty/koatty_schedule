@@ -50,7 +50,7 @@ Description
 
 </td><td>
 
-RedLock decorator for distributed locking
+Redis-based distributed lock decorator with optimized preprocessing
 
 
 
