@@ -11,16 +11,8 @@
 import { IOCContainer, MethodDecoratorManager, DecoratorMetadata } from "koatty_container";
 import { RedLockOptions } from "../locker/redlock";
 import { Helper } from "koatty_lib";
-import { validateRedLockOptions, DecoratorType } from "../config/config";
+import { validateRedLockOptions, DecoratorType, RedLockConfig } from "../config/config";
 import { initRedLock, redLockerDescriptor } from "../process/locker";
-
-/**
- * RedLock decorator configuration  
- */
-export interface RedLockConfig {
-  name?: string;
-  options?: RedLockOptions;
-}
 
 /**
  * Redis-based distributed lock decorator with optimized preprocessing

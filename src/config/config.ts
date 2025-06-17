@@ -9,14 +9,13 @@
  */
 
 import { RedLockOptions } from "../locker/redlock";
-import { DefaultLogger as logger } from "koatty_logger";
 
 /**
- * Schedule configuration interface
+ * RedLock decorator configuration  
  */
-export interface ScheduleConfig {
-  timezone?: string;
-  RedLock?: RedLockOptions;
+export interface RedLockConfig {
+  name?: string;
+  options?: RedLockOptions;
 }
 
 /**
@@ -25,143 +24,6 @@ export interface ScheduleConfig {
 export enum DecoratorType {
   SCHEDULED = 'SCHEDULED',
   REDLOCK = 'REDLOCK'
-}
-
-
-/**
- * Configuration manager for koatty_schedule
- * Integrated with koatty IOC container
- */
-export class ConfigManager {
-  private config: ScheduleConfig = {
-    timezone: 'Asia/Beijing',
-    RedLock: {
-      lockTimeOut: 10000,
-      retryCount: 3,
-      retryDelay: 200,
-      retryJitter: 200
-    }
-  };
-  private loaded = false;
-  private static instance: ConfigManager;
-
-  constructor() {
-    // Load environment configuration by default
-    this.loadEnvironmentConfig();
-    
-    // Register this instance in IOC container
-    this.registerInContainer();
-  }
-
-  /**
-   * Register ConfigManager in IOC container
-   * @private
-   */
-  private registerInContainer(): void {
-    try {
-      const { IOCContainer } = require('koatty_container');
-      IOCContainer.reg('ConfigManager', this, {
-        type: 'COMPONENT',
-        args: []
-      });
-      logger.Debug('ConfigManager registered in IOC container');
-    } catch {
-      logger.Debug('IOC container not available, continuing without registration');
-    }
-  }
-
-  /**
-   * Get ConfigManager instance (singleton)
-   */
-  public static getInstance(): ConfigManager {
-    if (!ConfigManager.instance) {
-      ConfigManager.instance = new ConfigManager();
-    }
-    return ConfigManager.instance;
-  }
-
-  /**
-   * Load configuration from environment variables
-   */
-  loadEnvironmentConfig(): void {
-    try {
-      const { IOCContainer } = require('koatty_container');
-      const app = IOCContainer.getApp();
-      if (app) {
-        const appConfig = app.config('Schedule') || {};
-        this.config = {
-          timezone: appConfig.timezone || process.env.KOATTY_SCHEDULE_TIMEZONE || 'Asia/Beijing',
-          RedLock: {
-            lockTimeOut: appConfig.lockTimeOut || Number(process.env.REDLOCK_TIMEOUT) || 10000,
-            retryCount: appConfig.retryCount || Number(process.env.REDLOCK_RETRY_COUNT) || 3,
-            retryDelay: appConfig.retryDelay || Number(process.env.REDLOCK_RETRY_DELAY) || 200,
-            retryJitter: appConfig.retryJitter || Number(process.env.REDLOCK_RETRY_JITTER) || 200
-          }
-        };
-      } else {
-        // Fallback to environment variables only
-        this.config = {
-          timezone: process.env.KOATTY_SCHEDULE_TIMEZONE || 'Asia/Beijing',
-          RedLock: {
-            lockTimeOut: Number(process.env.REDLOCK_TIMEOUT) || 10000,
-            retryCount: Number(process.env.REDLOCK_RETRY_COUNT) || 3,
-            retryDelay: Number(process.env.REDLOCK_RETRY_DELAY) || 200,
-            retryJitter: Number(process.env.REDLOCK_RETRY_JITTER) || 200
-          }
-        };
-      }
-      
-      this.loaded = true;
-      logger.Debug('Configuration loaded from environment');
-    } catch {
-      logger.Debug('Using default configuration');
-      this.loaded = true;
-    }
-  }
-
-  /**
-   * Get current configuration
-   */
-  getConfig(): ScheduleConfig {
-    return { ...this.config };
-  }
-
-  /**
-   * Merge custom configuration
-   */
-  mergeConfig(customConfig: Partial<ScheduleConfig>): void {
-    this.config = {
-      ...this.config,
-      ...customConfig,
-      RedLock: {
-        ...this.config.RedLock,
-        ...customConfig.RedLock
-      }
-    };
-  }
-
-  /**
-   * Reset configuration to default
-   */
-  reset(): void {
-    this.config = {
-      timezone: 'Asia/Beijing',
-      RedLock: {
-        lockTimeOut: 10000,
-        retryCount: 3,
-        retryDelay: 200,
-        retryJitter: 200
-      }
-    };
-    this.loaded = false;
-  }
-
-  /**
-   * Check if configuration is loaded
-   */
-  isLoaded(): boolean {
-    return this.loaded;
-  }
 }
 
 /**

@@ -14,31 +14,6 @@ import { DefaultLogger as logger } from "koatty_logger";
 import { IOCContainer } from "koatty_container";
 
 /**
- * Configuration options for RedLock
- */
-export interface RedLockOptions extends Partial<Settings> {
-  lockTimeOut?: number;
-  clockDriftFactor?: number;
-  maxRetries?: number;
-  retryDelayMs?: number;
-}
-
-/**
- * Default RedLock configuration
- */
-const DEFAULT_REDLOCK_CONFIG: RedLockOptions = {
-  lockTimeOut: 10000,
-  clockDriftFactor: 0.01,
-  maxRetries: 3,
-  retryDelayMs: 200,
-  driftFactor: 0.01,
-  retryCount: 3,
-  retryDelay: 200,
-  retryJitter: 200,
-  automaticExtensionThreshold: 500
-};
-
-/**
  * Redis connection configuration
  */
 export interface RedisConfig {
@@ -50,14 +25,36 @@ export interface RedisConfig {
 }
 
 /**
- * Default Redis configuration
+ * Configuration options for RedLock
  */
-const DEFAULT_REDIS_CONFIG: Required<RedisConfig> = {
-  host: '127.0.0.1',
-  port: 6379,
-  password: '',
-  db: 0,
-  keyPrefix: 'redlock:'
+export interface RedLockOptions extends Partial<Settings> {
+  lockTimeOut?: number;
+  clockDriftFactor?: number;
+  maxRetries?: number;
+  retryDelayMs?: number;
+  redisConfig?: RedisConfig;
+}
+
+/**
+ * Default RedLock configuration
+ */
+const defaultRedLockConfig: RedLockOptions = {
+  lockTimeOut: 10000,
+  clockDriftFactor: 0.01,
+  maxRetries: 3,
+  retryDelayMs: 200,
+  driftFactor: 0.01,
+  retryCount: 3,
+  retryDelay: 200,
+  retryJitter: 200,
+  automaticExtensionThreshold: 500,
+  redisConfig: {
+    host: '127.0.0.1',
+    port: 6379,
+    password: '',
+    db: 0,
+    keyPrefix: 'redlock:'
+  }
 };
 
 /**
@@ -68,13 +65,10 @@ export class RedLocker {
   private redlock: Redlock | null = null;
   private redis: Redis | null = null;
   private config: RedLockOptions;
-  private redisConfig: RedisConfig;
   private isInitialized = false;
 
-  constructor(options?: RedLockOptions, redisConfig?: RedisConfig) {
-    this.config = { ...DEFAULT_REDLOCK_CONFIG, ...options };
-    this.redisConfig = { ...DEFAULT_REDIS_CONFIG, ...redisConfig };
-    
+  constructor(options?: RedLockOptions) {
+    this.config = { ...defaultRedLockConfig, ...options };
     // Register this instance in IOC container
     this.registerInContainer();
   }
@@ -103,18 +97,18 @@ export class RedLocker {
    * @param redisConfig - Redis configuration
    * @returns RedLocker instance
    */
-  public static getInstance(options?: RedLockOptions, redisConfig?: RedisConfig): RedLocker {
+  public static getInstance(options?: RedLockOptions): RedLocker {
     try {
       // Try to get from IOC container first
       let instance = IOCContainer.get('RedLocker', 'COMPONENT') as RedLocker;
       if (!instance) {
         // Create new instance if not found in container
-        instance = new RedLocker(options, redisConfig);
+        instance = new RedLocker(options);
       }
       return instance;
     } catch {
       logger.Debug('Creating new RedLocker instance outside IOC container');
-      return new RedLocker(options, redisConfig);
+      return new RedLocker(options);
     }
   }
 
@@ -135,11 +129,11 @@ export class RedLocker {
       } catch {
         // Create new Redis connection if not available in container
         this.redis = new Redis({
-          host: this.redisConfig.host || DEFAULT_REDIS_CONFIG.host,
-          port: this.redisConfig.port || DEFAULT_REDIS_CONFIG.port,
-          password: this.redisConfig.password || undefined,
-          db: this.redisConfig.db || DEFAULT_REDIS_CONFIG.db,
-          keyPrefix: this.redisConfig.keyPrefix || DEFAULT_REDIS_CONFIG.keyPrefix,
+          host: this.config.redisConfig.host,
+          port: this.config.redisConfig.port,
+          password: this.config.redisConfig.password || undefined,
+          db: this.config.redisConfig.db || 0,
+          keyPrefix: this.config.redisConfig.keyPrefix,
           maxRetriesPerRequest: 3
         });
         logger.Debug('Created new Redis connection for RedLocker');
@@ -197,7 +191,7 @@ export class RedLocker {
     try {
       // Add key prefix to resources
       const prefixedResources = resources.map(resource => 
-        `${this.redisConfig.keyPrefix}${resource}`
+        `${this.config.redisConfig.keyPrefix}${resource}`
       );
 
       logger.Debug(`Acquiring lock for resources: ${prefixedResources.join(', ')} with TTL: ${lockTtl}ms`);
@@ -272,26 +266,15 @@ export class RedLocker {
   }
 
   /**
-   * Get Redis configuration
-   * @returns Current Redis configuration
-   */
-  getRedisConfig(): RedisConfig {
-    return { ...this.redisConfig };
-  }
-
-  /**
    * Update configuration (requires reinitialization)
    * @param options - New RedLock options
    * @param redisConfig - New Redis configuration
    */
-  updateConfig(options?: Partial<RedLockOptions>, redisConfig?: Partial<RedisConfig>): void {
+  updateConfig(options?: Partial<RedLockOptions>): void {
     if (options) {
       this.config = { ...this.config, ...options };
     }
-    if (redisConfig) {
-      this.redisConfig = { ...this.redisConfig, ...redisConfig };
-    }
-    
+
     // Mark as uninitialized to force reinitialization on next use
     this.isInitialized = false;
     this.redlock = null;
