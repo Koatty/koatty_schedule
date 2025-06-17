@@ -14,15 +14,6 @@ import { injectSchedule } from "../process/schedule";
 import { IOCContainer, MethodDecoratorManager, DecoratorMetadata } from "koatty_container";
 
 /**
- * Scheduled decorator configuration
- */
-export interface ScheduledConfig {
-  cron: string;
-  timezone?: string;
-}
-
-
-/**
  * Schedule task decorator with optimized preprocessing
  *
  * @export
@@ -103,11 +94,7 @@ export function Scheduled(cron: string, timezone = 'Asia/Beijing'): MethodDecora
         descriptor
       );
 
-
-
-      // 注入计划任务 - 这个操作只在应用启动时进行一次
       injectSchedule(target, propertyKey, cron, timezone);
-
       return processedDescriptor;
     } catch (error) {
       throw Error(`Failed to inject schedule for ${propertyKey}: ${(error as Error).message}`);
