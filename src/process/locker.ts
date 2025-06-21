@@ -14,32 +14,111 @@ import { Helper } from "koatty_lib";
 import { DefaultLogger as logger } from "koatty_logger";
 import { Lock } from "@sesamecare-oss/redlock";
 import { timeoutPromise } from "../utils/lib";
+import { Koatty } from "koatty_core";
+import { DecoratorType, RedLockMethodOptions, getEffectiveRedLockOptions } from "../config/config";
 
 /**
  * Initiation schedule locker client.
  *
  * @returns {Promise<void>}  
  */
-export async function initRedLock(): Promise<void> {
-  const app = IOCContainer.getApp();
+export async function initRedLock(options: RedLockOptions, app: Koatty): Promise<void> {
   if (!app || !Helper.isFunction(app.once)) {
     logger.Warn(`RedLock initialization skipped: Koatty app not available or not initialized`);
     return;
   }
-  
+
   app.once("appStart", async function () {
     try {
-      const opt: RedLockOptions = app.config("RedLock", "db") ?? {};
-      if (Helper.isEmpty(opt)) {
+      if (Helper.isEmpty(options)) {
         throw Error(`Missing RedLock configuration. Please write a configuration item with the key name 'RedLock' in the db.ts file.`);
       }
-      RedLocker.getInstance(opt);
+      const redLocker = RedLocker.getInstance(options);
+      await redLocker.initialize();
       logger.Info('RedLock initialized successfully');
     } catch (error) {
       logger.Error('Failed to initialize RedLock:', error);
       throw error;
     }
   });
+}
+
+/**
+ * 批量注入RedLock锁 - 从IOC容器读取类元数据并应用所有RedLock装饰器
+ *
+ * @param {RedLockOptions} options - RedLock 配置选项  
+ * @param {Koatty} app - Koatty 应用实例
+ */
+export async function injectRedLock(options: RedLockOptions, app: Koatty): Promise<void> {
+  try {
+    logger.Debug('Starting batch RedLock injection...');
+
+    const componentList = IOCContainer.listClass("COMPONENT");
+    for (const component of componentList) {
+      const classMetadata = IOCContainer.getClassMetadata('COMPONENT', DecoratorType.REDLOCK,
+        component);
+      if (!classMetadata) {
+        continue;
+      }
+      let redlockCount = 0;
+
+      for (const [className, metadata] of classMetadata) {
+        try {
+          const instance: any = IOCContainer.get(className);
+          if (!instance) {
+            continue;
+          }
+
+                     // 查找所有RedLock方法的元数据
+           for (const [key, value] of Object.entries(metadata)) {
+             if (key.startsWith('REDLOCK:')) {
+               const redlockData = value as {
+                 method: string;
+                 name: string;  // 装饰器中已确定，不会为undefined
+                 options?: RedLockMethodOptions;
+               };
+
+               const targetMethod = instance[redlockData.method];
+               if (!Helper.isFunction(targetMethod)) {
+                 logger.Warn(`RedLock injection skipped: method ${redlockData.method} is not a function in ${className}`);
+                 continue;
+               }
+
+               // 生成有效的RedLock选项：方法级别 > 全局配置 > 默认值
+               const effectiveOptions = getEffectiveRedLockOptions(redlockData.options);
+
+               // 应用RedLock增强描述符
+               const originalDescriptor: PropertyDescriptor = {
+                 value: targetMethod,
+                 writable: true,
+                 enumerable: false,
+                 configurable: true
+               };
+
+               const enhancedDescriptor = redLockerDescriptor(
+                 originalDescriptor, 
+                 redlockData.name,  // 使用装饰器中确定的锁名称
+                 redlockData.method,
+                 effectiveOptions
+               );
+
+              // 替换原方法
+              Object.defineProperty(instance, redlockData.method, enhancedDescriptor);
+
+              redlockCount++;
+              logger.Debug(`RedLock applied to ${className}.${redlockData.method} with lock name: ${redlockData.name}`);
+            }
+          }
+        } catch (error) {
+          logger.Error(`Failed to process class ${className}:`, error);
+        }
+      }
+
+      logger.Info(`Batch RedLock injection completed. ${redlockCount} locks applied.`);
+    }
+  } catch (error) {
+    logger.Error('Failed to inject RedLocks:', error);
+  }
 }
 
 /**
@@ -54,7 +133,7 @@ export function redLockerDescriptor(
   descriptor: PropertyDescriptor,
   name: string,
   method: string,
-  options?: RedLockOptions
+  methodOptions?: RedLockMethodOptions
 ): PropertyDescriptor {
   // 参数验证
   if (!descriptor) {
@@ -74,11 +153,12 @@ export function redLockerDescriptor(
     throw new Error('Descriptor value must be a function');
   }
 
-  // 设置默认选项
-  const lockOptions: RedLockOptions = {
-    lockTimeOut: 10000,
-    retryCount: 3,
-    ...options
+  // 设置默认选项，合并方法级别的选项
+  const lockOptions = {
+    lockTimeOut: methodOptions?.lockTimeOut || 10000,
+    clockDriftFactor: methodOptions?.clockDriftFactor || 0.01,
+    maxRetries: methodOptions?.maxRetries || 3,
+    retryDelayMs: methodOptions?.retryDelayMs || 200
   };
 
   /**
@@ -103,7 +183,7 @@ export function redLockerDescriptor(
       // renew the lock once. after renewal, the function still has not completed,
       // the lock may be released prematurely.
       if (error instanceof Error && error.message === 'TIME_OUT_ERROR') {
-        logger.Info(`The execution exceeds the lock duration, trigger lock renewal for method: ${method}`);
+        logger.Debug(`The execution exceeds the lock duration, trigger lock renewal for method: ${method}`);
         try {
           // Extend the lock. Note that this returns a new `Lock` instance.
           const extendedLock = await lock.extend(timeout);

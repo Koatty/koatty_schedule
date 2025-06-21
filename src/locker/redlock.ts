@@ -116,7 +116,7 @@ export class RedLocker {
    * Initialize RedLock with Redis connection
    * @private
    */
-  private async initialize(): Promise<void> {
+  public async initialize(): Promise<void> {
     if (this.isInitialized) {
       return;
     }
@@ -279,7 +279,7 @@ export class RedLocker {
     this.isInitialized = false;
     this.redlock = null;
     
-    logger.Info('RedLocker configuration updated, will reinitialize on next use');
+    logger.Debug('RedLocker configuration updated, will reinitialize on next use');
   }
 
   /**

@@ -10,8 +10,7 @@
 
 import { Helper } from "koatty_lib";
 import { DecoratorType, validateCronExpression } from "../config/config";
-import { injectSchedule } from "../process/schedule";
-import { IOCContainer, MethodDecoratorManager, DecoratorMetadata } from "koatty_container";
+import { IOCContainer } from "koatty_container";
 
 /**
  * Schedule task decorator with optimized preprocessing
@@ -31,7 +30,7 @@ import { IOCContainer, MethodDecoratorManager, DecoratorMetadata } from "koatty_
  * @returns {MethodDecorator}
  * @throws {Error} When cron expression is invalid or decorator is used on wrong class type
  */
-export function Scheduled(cron: string, timezone = 'Asia/Beijing'): MethodDecorator {
+export function Scheduled(cron: string, timezone?: string): MethodDecorator {
   // 参数验证
   if (Helper.isEmpty(cron)) {
     throw Error("Cron expression is required and cannot be empty");
@@ -67,37 +66,11 @@ export function Scheduled(cron: string, timezone = 'Asia/Beijing'): MethodDecora
       throw Error("@Scheduled decorator can only be applied to methods");
     }
 
-    try {
-      // 使用装饰器管理器进行预处理
-      const decoratorManager = MethodDecoratorManager.getInstance();
-
-      // Register wrapper for Scheduled decorator if not already registered
-      if (!decoratorManager.hasWrapper(DecoratorType.SCHEDULED)) {
-        decoratorManager.registerWrapper(DecoratorType.SCHEDULED, (originalMethod) => {
-          // Scheduled decorator doesn't wrap the method, it registers for cron execution
-          return originalMethod;
-        });
-      }
-
-      const decoratorMetadata: DecoratorMetadata = {
-        type: DecoratorType.SCHEDULED,
-        config: { cron, timezone },
-        applied: true,
-        priority: 1 // Lower priority than RedLock
-      };
-
-      // 注册装饰器 - 这会处理重复检查和优化
-      const processedDescriptor = decoratorManager.registerDecorator(
-        target,
-        propertyKey,
-        decoratorMetadata,
-        descriptor
-      );
-
-      injectSchedule(target, propertyKey, cron, timezone);
-      return processedDescriptor;
-    } catch (error) {
-      throw Error(`Failed to inject schedule for ${propertyKey}: ${(error as Error).message}`);
-    }
+    // 保存调度元数据到 IOC 容器（timezone如果用户未指定则保存为undefined，在injectSchedule中处理）
+    IOCContainer.attachClassMetadata('COMPONENT', DecoratorType.SCHEDULED, {
+      method: propertyKey,
+      cron,
+      timezone  // 保存用户指定的值，可能为undefined
+    }, targetObj, propertyKey);
   };
 }
