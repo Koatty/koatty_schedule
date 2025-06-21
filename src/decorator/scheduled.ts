@@ -48,16 +48,17 @@ export function Scheduled(cron: string, timezone?: string): MethodDecorator {
     throw Error("Timezone must be a string");
   }
 
-  return (target: unknown, propertyKey: string, descriptor: PropertyDescriptor) => {
-    // 验证装饰器使用的类型
-    const targetObj = target as object | Function;
-    const componentType = IOCContainer.getType(targetObj);
+  return (target: unknown, propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
+    // 验证装饰器使用的类型（从原型对象获取类构造函数）
+    const targetClass = (target as any).constructor;
+    const componentType = IOCContainer.getType(targetClass);
     if (componentType !== "SERVICE" && componentType !== "COMPONENT") {
       throw Error("@Scheduled decorator can only be used on SERVICE or COMPONENT classes.");
     }
 
     // 验证方法名
-    if (!propertyKey || typeof propertyKey !== 'string') {
+    const methodName = propertyKey.toString();
+    if (!methodName || typeof methodName !== 'string') {
       throw Error("Method name is required for @Scheduled decorator");
     }
 
@@ -65,12 +66,13 @@ export function Scheduled(cron: string, timezone?: string): MethodDecorator {
     if (!descriptor || typeof descriptor.value !== 'function') {
       throw Error("@Scheduled decorator can only be applied to methods");
     }
-
-    // 保存调度元数据到 IOC 容器（timezone如果用户未指定则保存为undefined，在injectSchedule中处理）
+    // 保存类到IOC容器
+    IOCContainer.saveClass('COMPONENT', targetClass, targetClass.name);
+    // 保存调度元数据到 IOC 容器
     IOCContainer.attachClassMetadata('COMPONENT', DecoratorType.SCHEDULED, {
-      method: propertyKey,
+      method: methodName,
       cron,
       timezone  // 保存用户指定的值，可能为undefined
-    }, targetObj, propertyKey);
+    }, target as object, methodName);
   };
 }
