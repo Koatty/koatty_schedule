@@ -38,6 +38,10 @@ const defaultOptions: ScheduledOptions = {
   }
 }
 
+/**
+ * @param options - The options for the scheduled job
+ * @param app - The Koatty application instance
+ */
 export async function KoattyScheduled(options: ScheduledOptions, app: Koatty) {
   options = { ...defaultOptions, ...options };
   
