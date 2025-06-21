@@ -4,13 +4,13 @@
 
 ## RedLock() function
 
-Redis-based distributed lock decorator with optimized preprocessing
+Redis-based distributed lock decorator
 
 
 **Signature:**
 
 ```typescript
-export declare function RedLock(lockName?: string, options?: RedLockOptions): MethodDecorator;
+export declare function RedLock(lockName?: string, options?: RedLockMethodOptions): MethodDecorator;
 ```
 
 ## Parameters
@@ -54,14 +54,12 @@ options
 
 </td><td>
 
-[RedLockOptions](./koatty_schedule.redlockoptions.md)
+RedLockMethodOptions
 
 
 </td><td>
 
-_(Optional)_ RedLock configuration options
-
-Options: - lockTimeOut?: number - Lock timeout in milliseconds (default: 10000) - retryCount?: number - The max number of times Redlock will attempt to lock a resource (default: 3) - RedisOptions: RedisOptions - Redis connection configuration
+_(Optional)_ Lock configuration options for this method
 
 
 </td></tr>
@@ -75,4 +73,21 @@ MethodDecorator
 ## Exceptions
 
 {<!-- -->Error<!-- -->} When decorator is used on wrong class type or invalid configuration
+
+## Example
+
+
+```typescript
+class UserService {
+  @RedLock('user_update_lock', { lockTimeOut: 5000, maxRetries: 2 })
+  async updateUser(id: string, data: any) {
+    // This method will be protected by a distributed lock with predictable name
+  }
+
+  @RedLock() // Auto-generated unique name like "deleteUser_abc123_xyz789"
+  async deleteUser(id: string) {
+    // This method will be protected by a distributed lock with auto-generated unique name
+  }
+}
+```
 
