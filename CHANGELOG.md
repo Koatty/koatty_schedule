@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.1.0](https://github.com/thinkkoa/koatty_schedule/compare/v3.0.0...v3.1.0) (2025-06-21)
+
+
+### Features
+
+* update decorator types to support symbol property keys and improve IOC container integration ([a60ef3e](https://github.com/thinkkoa/koatty_schedule/commit/a60ef3e361b245f97ba0d6ee51d42efd437a1252))
+
 ## [3.0.0](https://github.com/thinkkoa/koatty_schedule/compare/v2.1.0...v3.0.0) (2025-06-21)
 
 
