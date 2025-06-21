@@ -4,32 +4,6 @@
 
 ## koatty\_schedule package
 
-## Enumerations
-
-<table><thead><tr><th>
-
-Enumeration
-
-
-</th><th>
-
-Description
-
-
-</th></tr></thead>
-<tbody><tr><td>
-
-[DecoratorType](./koatty_schedule.decoratortype.md)
-
-
-</td><td>
-
-Decorator types supported by the system
-
-
-</td></tr>
-</tbody></table>
-
 ## Functions
 
 <table><thead><tr><th>
@@ -45,12 +19,21 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[KoattyScheduled(options, app)](./koatty_schedule.koattyscheduled.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [RedLock(lockName, options)](./koatty_schedule.redlock.md)
 
 
 </td><td>
 
-Redis-based distributed lock decorator with optimized preprocessing
+Redis-based distributed lock decorator
 
 
 
@@ -64,54 +47,6 @@ Redis-based distributed lock decorator with optimized preprocessing
 
 Schedule task decorator with optimized preprocessing
 
-
-
-</td></tr>
-<tr><td>
-
-[validateCronExpression(cron)](./koatty_schedule.validatecronexpression.md)
-
-
-</td><td>
-
-Validate cron expression format
-
-
-</td></tr>
-<tr><td>
-
-[validateRedLockOptions(options)](./koatty_schedule.validateredlockoptions.md)
-
-
-</td><td>
-
-Validate RedLock options
-
-
-</td></tr>
-</tbody></table>
-
-## Interfaces
-
-<table><thead><tr><th>
-
-Interface
-
-
-</th><th>
-
-Description
-
-
-</th></tr></thead>
-<tbody><tr><td>
-
-[RedLockOptions](./koatty_schedule.redlockoptions.md)
-
-
-</td><td>
-
-Configuration options for RedLock
 
 
 </td></tr>
