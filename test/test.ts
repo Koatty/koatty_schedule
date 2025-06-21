@@ -10,7 +10,10 @@ class Test1 {
   }
 
   bb() {
-    console.log("bb exec");
+    // Debug模式下输出测试信息
+if (process.env.NODE_ENV === 'test' && process.env.DEBUG) {
+  console.log("bb exec");
+}
   }
 }
 
