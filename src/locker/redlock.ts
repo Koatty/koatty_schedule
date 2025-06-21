@@ -60,14 +60,20 @@ const defaultRedLockConfig: RedLockOptions = {
 /**
  * RedLock distributed lock manager
  * Integrated with koatty IOC container
+ * Implements singleton pattern for safe instance management
  */
 export class RedLocker {
+  private static instance: RedLocker | null = null;
+  private static readonly instanceLock = Symbol('RedLocker.instanceLock');
+  
   private redlock: Redlock | null = null;
   private redis: Redis | null = null;
   private config: RedLockOptions;
   private isInitialized = false;
+  private initializationPromise: Promise<void> | null = null;
 
-  constructor(options?: RedLockOptions) {
+  // 私有构造函数防止外部直接实例化
+  private constructor(options?: RedLockOptions) {
     this.config = { ...defaultRedLockConfig, ...options };
     // Register this instance in IOC container
     this.registerInContainer();
@@ -91,35 +97,87 @@ export class RedLocker {
   }
 
   /**
-   * Get RedLocker instance from IOC container
+   * Get RedLocker singleton instance with thread-safe initialization
    * @static
-   * @param options - RedLock configuration options
-   * @param redisConfig - Redis configuration
-   * @returns RedLocker instance
+   * @param options - RedLock configuration options (only used for first initialization)
+   * @returns RedLocker singleton instance
    */
   public static getInstance(options?: RedLockOptions): RedLocker {
-    try {
-      // Try to get from IOC container first
-      let instance = IOCContainer.get('RedLocker', 'COMPONENT') as RedLocker;
-      if (!instance) {
-        // Create new instance if not found in container
-        instance = new RedLocker(options);
+    // 双重检查锁定模式确保线程安全
+    if (!RedLocker.instance) {
+      // 首次创建时使用选项，后续调用忽略选项参数
+      if (RedLocker.instance === null) {
+        try {
+          // 尝试从IOC容器获取已存在的实例
+          const containerInstance = IOCContainer.get('RedLocker', 'COMPONENT') as RedLocker;
+          if (containerInstance) {
+            RedLocker.instance = containerInstance;
+            logger.Debug('Retrieved existing RedLocker instance from IOC container');
+          } else {
+            // 创建新的单例实例
+            RedLocker.instance = new RedLocker(options);
+            logger.Debug('Created new RedLocker singleton instance');
+          }
+        } catch {
+          // IOC容器不可用时直接创建
+          RedLocker.instance = new RedLocker(options);
+          logger.Debug('Created new RedLocker instance outside IOC container');
+        }
       }
-      return instance;
-    } catch {
-      logger.Debug('Creating new RedLocker instance outside IOC container');
-      return new RedLocker(options);
+    } else if (options) {
+      // 如果实例已存在但传入了新选项，记录警告
+      logger.Warn('RedLocker instance already exists, ignoring new options. Use updateConfig() to change configuration.');
+    }
+    
+    return RedLocker.instance;
+  }
+
+  /**
+   * Reset singleton instance (主要用于测试)
+   * @static
+   */
+  public static resetInstance(): void {
+    if (RedLocker.instance) {
+      RedLocker.instance.close().catch(err => 
+        logger.Warn('Error while closing RedLocker instance during reset:', err)
+      );
+      RedLocker.instance = null;
     }
   }
 
   /**
    * Initialize RedLock with Redis connection
+   * Uses cached promise to avoid duplicate initialization
    * @private
    */
   public async initialize(): Promise<void> {
+    // 如果已经初始化，直接返回
     if (this.isInitialized) {
       return;
     }
+    
+    // 如果正在初始化，等待现有的初始化完成
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+    
+    // 创建初始化Promise并缓存
+    this.initializationPromise = this.performInitialization();
+    
+    try {
+      await this.initializationPromise;
+    } catch (error) {
+      // 初始化失败时清理缓存，允许重试
+      this.initializationPromise = null;
+      throw error;
+    }
+  }
+  
+  /**
+   * 执行实际的初始化操作
+   * @private
+   */
+  private async performInitialization(): Promise<void> {
 
     try {
       // Try to get Redis instance from IOC container first
@@ -160,6 +218,7 @@ export class RedLocker {
       this.isInitialized = true;
       logger.Info('RedLocker initialized successfully');
     } catch (error) {
+      this.isInitialized = false;
       logger.Error('Failed to initialize RedLocker:', error);
       throw new Error(`RedLocker initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -202,7 +261,12 @@ export class RedLocker {
       return lock;
     } catch (error) {
       logger.Error(`Failed to acquire lock for resources: ${resources.join(', ')}`, error);
-      throw new Error(`Lock acquisition failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // 保留原始错误信息，避免过度包装
+      if (error instanceof Error) {
+        error.message = `Lock acquisition failed: ${error.message}`;
+        throw error;
+      }
+      throw new Error(`Lock acquisition failed: Unknown error`);
     }
   }
 
@@ -220,7 +284,12 @@ export class RedLocker {
       logger.Debug('Lock released successfully');
     } catch (error) {
       logger.Error('Failed to release lock:', error);
-      throw new Error(`Lock release failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // 保留原始错误信息
+      if (error instanceof Error) {
+        error.message = `Lock release failed: ${error.message}`;
+        throw error;
+      }
+      throw new Error(`Lock release failed: Unknown error`);
     }
   }
 
@@ -268,15 +337,15 @@ export class RedLocker {
   /**
    * Update configuration (requires reinitialization)
    * @param options - New RedLock options
-   * @param redisConfig - New Redis configuration
    */
   updateConfig(options?: Partial<RedLockOptions>): void {
     if (options) {
       this.config = { ...this.config, ...options };
     }
 
-    // Mark as uninitialized to force reinitialization on next use
+    // 清理初始化状态，强制重新初始化
     this.isInitialized = false;
+    this.initializationPromise = null;
     this.redlock = null;
     
     logger.Debug('RedLocker configuration updated, will reinitialize on next use');
