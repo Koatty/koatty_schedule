@@ -162,46 +162,60 @@ export function redLockerDescriptor(
   };
 
   /**
-   * Enhanced function wrapper with better error handling
+   * Enhanced function wrapper with proper lock renewal and safety
    */
   const valueFunction = async (
     self: unknown,
-    lock: Lock,
+    initialLock: Lock,
     lockTime: number,
     timeout: number,
     props: unknown[]
   ): Promise<unknown> => {
+    let currentLock = initialLock;
+    let remainingTime = timeout;
+    const maxExtensions = 3; // 限制续期次数防止无限循环
+    let extensionCount = 0;
+    
     try {
-      // Wait for the function to complete or for the lock to time out.
-      const result = await Promise.race([
-        value.apply(self, props),
-        timeoutPromise(timeout)
-      ]);
-      return result;
-    } catch (error) {
-      // If the lock times out and the function has not completed,
-      // renew the lock once. after renewal, the function still has not completed,
-      // the lock may be released prematurely.
-      if (error instanceof Error && error.message === 'TIME_OUT_ERROR') {
-        logger.Debug(`The execution exceeds the lock duration, trigger lock renewal for method: ${method}`);
+      while (remainingTime > 0 && extensionCount < maxExtensions) {
         try {
-          // Extend the lock. Note that this returns a new `Lock` instance.
-          const extendedLock = await lock.extend(timeout);
-          // wait for timeout to release lock
-          await timeoutPromise(timeout).catch(() => {
-            logger.Warn(`Extended lock timeout for method: ${method}`);
-          });
-          return extendedLock;
-        } catch (extendError) {
-          logger.Error(`Failed to extend lock for method: ${method}`, extendError);
-          throw extendError;
+          // 执行业务方法，与超时竞争
+          const result = await Promise.race([
+            value.apply(self, props),
+            timeoutPromise(remainingTime)
+          ]);
+          return result; // 成功执行，返回业务结果
+        } catch (error) {
+          // 处理超时错误，尝试续期锁
+          if (error instanceof Error && error.message === 'TIME_OUT_ERROR') {
+            extensionCount++;
+            logger.Debug(`Method ${method} execution timeout, attempting lock extension ${extensionCount}/${maxExtensions}`);
+            
+            try {
+              // 续期锁，获得新的锁实例
+              currentLock = await currentLock.extend(lockTime);
+              remainingTime = lockTime - 200; // 预留200ms用于锁操作
+              logger.Debug(`Lock extended for method: ${method}, remaining time: ${remainingTime}ms`);
+              
+              // 继续循环，重新执行业务方法
+              continue;
+            } catch (extendError) {
+              logger.Error(`Failed to extend lock for method: ${method}`, extendError);
+              throw new Error(`Lock extension failed: ${extendError instanceof Error ? extendError.message : 'Unknown error'}`);
+            }
+          } else {
+            // 非超时错误，直接抛出
+            throw error;
+          }
         }
       }
-      throw error;
+      
+      // 达到最大续期次数或剩余时间不足
+      throw new Error(`Method ${method} execution timeout after ${extensionCount} lock extensions`);
     } finally {
-      // release lock
+      // 确保锁被释放
       try {
-        await lock.release();
+        await currentLock.release();
         logger.Debug(`Lock released for method: ${method}`);
       } catch (releaseError) {
         logger.Warn(`Failed to release lock for method: ${method}`, releaseError);

@@ -41,7 +41,7 @@ const defaultOptions: ScheduledOptions = {
 export async function KoattyScheduled(options: ScheduledOptions, app: Koatty) {
   options = { ...defaultOptions, ...options };
   
-  // 保存全局配置供装饰器使用
+  // 保存全局配置
   setGlobalScheduledOptions(options);
   
   await initRedLock(options, app);
