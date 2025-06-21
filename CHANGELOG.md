@@ -2,9 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-### [2.1.1](https://github.com/thinkkoa/koatty_schedule/compare/v2.1.0...v2.1.1) (2025-06-09)
+## [3.0.0](https://github.com/thinkkoa/koatty_schedule/compare/v2.1.0...v3.0.0) (2025-06-21)
 
-### [1.6.2](https://github.com/thinkkoa/koatty_schedule/compare/v2.0.1...v1.6.2) (2024-11-07)
+
+### Features
+
+* enhance distributed locking and scheduling system with global configuration management and improved validation ([cf3924c](https://github.com/thinkkoa/koatty_schedule/commit/cf3924cf6bccf951f070c68e33483ae935828382))
+* improve RedLock singleton management with thread-safe initialization and lock renewal enhancements ([4e381cd](https://github.com/thinkkoa/koatty_schedule/commit/4e381cd8eec6aa366a6db813918f213f07b02921))
+* refactor RedLock configuration and remove deprecated ScheduleConfig ([bb10ac7](https://github.com/thinkkoa/koatty_schedule/commit/bb10ac7dab67d32ca75a43db92c587a662bc1b9f))
 
 ## [2.1.0](https://github.com/thinkkoa/koatty_schedule/compare/v2.0.1...v2.1.0) (2025-06-09)
 
