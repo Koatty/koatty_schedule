@@ -8,29 +8,39 @@
  * @Copyright (c): <richenlin(at)gmail.com>
  */
 
-import { IOCContainer, MethodDecoratorManager, DecoratorMetadata } from "koatty_container";
-import { RedLockOptions } from "../locker/redlock";
+import { IOCContainer } from "koatty_container";
 import { Helper } from "koatty_lib";
-import { validateRedLockOptions, DecoratorType, RedLockConfig } from "../config/config";
-import { initRedLock, redLockerDescriptor } from "../process/locker";
+import { DecoratorType, RedLockMethodOptions, validateRedLockMethodOptions } from "../config/config";
 
 /**
- * Redis-based distributed lock decorator with optimized preprocessing
+ * Redis-based distributed lock decorator
  *
  * @export
  * @param {string} [name] - The locker name. If name is duplicated, lock sharing contention will result.
- * @param {RedLockOptions} [options] - RedLock configuration options
- * 
- * Options:
- * - lockTimeOut?: number - Lock timeout in milliseconds (default: 10000)
- * - retryCount?: number - The max number of times Redlock will attempt to lock a resource (default: 3)
- * - RedisOptions: RedisOptions - Redis connection configuration
+ *                          If not provided, a unique name will be auto-generated using method name + random suffix.
+ *                          IMPORTANT: Auto-generated names are unique per method deployment and not predictable.
+ * @param {RedLockMethodOptions} [options] - Lock configuration options for this method
  * 
  * @returns {MethodDecorator}
  * @throws {Error} When decorator is used on wrong class type or invalid configuration
+ * 
+ * @example
+ * ```typescript
+ * class UserService {
+ *   @RedLock('user_update_lock', { lockTimeOut: 5000, maxRetries: 2 })
+ *   async updateUser(id: string, data: any) {
+ *     // This method will be protected by a distributed lock with predictable name
+ *   }
+ *   
+ *   @RedLock() // Auto-generated unique name like "deleteUser_abc123_xyz789"
+ *   async deleteUser(id: string) {
+ *     // This method will be protected by a distributed lock with auto-generated unique name
+ *   }
+ * }
+ * ```
  */
-export function RedLock(lockName?: string, options?: RedLockOptions): MethodDecorator {
-  return (target: unknown, propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
+export function RedLock(lockName?: string, options?: RedLockMethodOptions): MethodDecorator {
+  return (target: unknown, propertyKey: string, descriptor: PropertyDescriptor) => {
     const methodName = propertyKey.toString();
 
     // 验证装饰器使用的类型
@@ -50,71 +60,23 @@ export function RedLock(lockName?: string, options?: RedLockOptions): MethodDeco
       throw Error("@RedLock decorator can only be applied to methods");
     }
 
-    // 生成锁名称
-    if (Helper.isEmpty(lockName)) {
-      const targetWithConstructor = target as { constructor?: Function };
-      const identifier = IOCContainer.getIdentifier(targetObj) || (targetWithConstructor.constructor ? targetWithConstructor.constructor.name : "");
-      lockName = `${identifier}_${methodName}`;
-    }
-
-    // 验证生成的锁名称
-    if (!lockName || typeof lockName !== 'string') {
-      throw Error("Failed to generate valid lock name");
+    // 生成唯一的锁名称：用户指定的 > 自动生成的唯一名称
+    if (!lockName || lockName.trim() === '') {
+      const randomSuffix = Math.random().toString(36).substring(2, 8); // 6位随机字符
+      const timestamp = Date.now().toString(36); // 时间戳转36进制
+      lockName = `${methodName}_${randomSuffix}_${timestamp}`;
     }
 
     // 验证选项
     if (options) {
-      try {
-        validateRedLockOptions(options);
-      } catch (error) {
-        throw Error(`RedLock options validation failed: ${(error as Error).message}`);
-      }
+      validateRedLockMethodOptions(options);
     }
 
-    try {
-      // 使用装饰器管理器进行预处理
-      const decoratorManager = MethodDecoratorManager.getInstance();
-
-      // Register wrapper for RedLock decorator if not already registered
-      if (!decoratorManager.hasWrapper(DecoratorType.REDLOCK)) {
-        decoratorManager.registerWrapper(DecoratorType.REDLOCK, (originalMethod, config: RedLockConfig, methodName) => {
-          const originalDescriptor: PropertyDescriptor = {
-            value: originalMethod,
-            writable: true,
-            enumerable: false,
-            configurable: true
-          };
-
-          const lockName = config.name || `redlock_${methodName}`;
-          const enhancedDescriptor = redLockerDescriptor(originalDescriptor, lockName, methodName, config.options);
-
-          return enhancedDescriptor.value!;
-        });
-      }
-
-      const decoratorMetadata: DecoratorMetadata = {
-        type: DecoratorType.REDLOCK,
-        config: { name: lockName, options } as RedLockConfig,
-        applied: true,
-        priority: 2 // Higher priority than Scheduled
-      };
-
-      // 注册装饰器 - 这会处理重复检查、缓存和优化
-      const processedDescriptor = decoratorManager.registerDecorator(
-        target,
-        methodName,
-        decoratorMetadata,
-        descriptor
-      );
-
-
-
-      // 初始化RedLock - 只在应用启动时进行一次
-      initRedLock();
-
-      return processedDescriptor;
-    } catch (error) {
-      throw Error(`Failed to apply RedLock to ${methodName}: ${(error as Error).message}`);
-    }
+    // 保存RedLock元数据到 IOC 容器（lockName已确定）
+    IOCContainer.attachClassMetadata('COMPONENT', DecoratorType.REDLOCK, {
+      method: methodName,
+      name: lockName,  // 确定的锁名称，不会为undefined
+      options
+    }, targetObj, methodName);
   };
 }

@@ -11,6 +11,23 @@
 import { RedLockOptions } from "../locker/redlock";
 
 /**
+ * Scheduled global options interface
+ */
+export interface ScheduledOptions extends RedLockOptions {
+  timezone?: string;
+}
+
+/**
+ * RedLock method-level options (excluding Redis connection config)
+ */
+export interface RedLockMethodOptions {
+  lockTimeOut?: number;        // Lock timeout in milliseconds
+  clockDriftFactor?: number;   // Clock drift factor for lock timeout calculation
+  maxRetries?: number;         // Maximum number of retry attempts
+  retryDelayMs?: number;       // Delay between retry attempts in milliseconds
+}
+
+/**
  * RedLock decorator configuration  
  */
 export interface RedLockConfig {
@@ -76,6 +93,41 @@ export function validateCronExpression(cron: string): void {
 }
 
 /**
+ * Validate RedLock method-level options
+ * @param options - RedLock method options to validate
+ * @throws {Error} When options are invalid
+ */
+export function validateRedLockMethodOptions(options: RedLockMethodOptions): void {
+  if (!options || typeof options !== 'object') {
+    throw new Error('RedLock method options must be an object');
+  }
+
+  if (options.lockTimeOut !== undefined) {
+    if (typeof options.lockTimeOut !== 'number' || options.lockTimeOut <= 0) {
+      throw new Error('lockTimeOut must be a positive number');
+    }
+  }
+
+  if (options.clockDriftFactor !== undefined) {
+    if (typeof options.clockDriftFactor !== 'number' || options.clockDriftFactor < 0 || options.clockDriftFactor > 1) {
+      throw new Error('clockDriftFactor must be a number between 0 and 1');
+    }
+  }
+
+  if (options.maxRetries !== undefined) {
+    if (typeof options.maxRetries !== 'number' || options.maxRetries < 0) {
+      throw new Error('maxRetries must be a non-negative number');
+    }
+  }
+
+  if (options.retryDelayMs !== undefined) {
+    if (typeof options.retryDelayMs !== 'number' || options.retryDelayMs < 0) {
+      throw new Error('retryDelayMs must be a non-negative number');
+    }
+  }
+}
+
+/**
  * Validate RedLock options
  * @param options - RedLock options to validate
  * @throws {Error} When options are invalid
@@ -108,4 +160,54 @@ export function validateRedLockOptions(options: RedLockOptions): void {
       throw new Error('retryJitter must be a non-negative number');
     }
   }
+}
+
+//==================== Global Configuration Management ====================
+
+/**
+ * Global configuration storage
+ */
+let globalScheduledOptions: ScheduledOptions = {};
+
+/**
+ * Set global scheduled options
+ * @param options - Global scheduled options
+ */
+export function setGlobalScheduledOptions(options: ScheduledOptions): void {
+  globalScheduledOptions = { ...options };
+}
+
+/**
+ * Get global scheduled options
+ * @returns Global scheduled options
+ */
+export function getGlobalScheduledOptions(): ScheduledOptions {
+  return globalScheduledOptions;
+}
+
+/**
+ * Get effective timezone with priority: user specified > global > default
+ * @param userTimezone - User specified timezone
+ * @returns Effective timezone
+ */
+export function getEffectiveTimezone(userTimezone?: string): string {
+  return userTimezone || globalScheduledOptions.timezone || 'Asia/Beijing';
+}
+
+
+
+/**
+ * Get effective RedLock method options with priority: method options > global options > defaults
+ * @param methodOptions - Method-level RedLock options
+ * @returns Effective RedLock method options with all defaults applied
+ */
+export function getEffectiveRedLockOptions(methodOptions?: RedLockMethodOptions): RedLockMethodOptions {
+  const globalOptions = getGlobalScheduledOptions();
+  
+  return {
+    lockTimeOut: methodOptions?.lockTimeOut || globalOptions.lockTimeOut || 10000,
+    clockDriftFactor: methodOptions?.clockDriftFactor || globalOptions.clockDriftFactor || 0.01,
+    maxRetries: methodOptions?.maxRetries || globalOptions.maxRetries || 3,
+    retryDelayMs: methodOptions?.retryDelayMs || globalOptions.retryDelayMs || 200
+  };
 } 
