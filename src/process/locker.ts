@@ -49,7 +49,7 @@ export async function initRedLock(options: RedLockOptions, app: Koatty): Promise
  * @param {RedLockOptions} options - RedLock 配置选项  
  * @param {Koatty} app - Koatty 应用实例
  */
-export async function injectRedLock(options: RedLockOptions, app: Koatty): Promise<void> {
+export async function injectRedLock(_options: RedLockOptions, _app: Koatty): Promise<void> {
   try {
     logger.Debug('Starting batch RedLock injection...');
 

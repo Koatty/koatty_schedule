@@ -9,7 +9,6 @@
  */
 
 import { IOCContainer } from "koatty_container";
-import { Helper } from "koatty_lib";
 import { DecoratorType, RedLockMethodOptions, validateRedLockMethodOptions } from "../config/config";
 
 /**
@@ -40,12 +39,12 @@ import { DecoratorType, RedLockMethodOptions, validateRedLockMethodOptions } fro
  * ```
  */
 export function RedLock(lockName?: string, options?: RedLockMethodOptions): MethodDecorator {
-  return (target: unknown, propertyKey: string, descriptor: PropertyDescriptor) => {
+  return (target: unknown, propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
     const methodName = propertyKey.toString();
 
-    // 验证装饰器使用的类型
-    const targetObj = target as object | Function;
-    const componentType = IOCContainer.getType(targetObj);
+    // 验证装饰器使用的类型（从原型对象获取类构造函数）
+    const targetClass = (target as any).constructor;
+    const componentType = IOCContainer.getType(targetClass);
     if (componentType !== "SERVICE" && componentType !== "COMPONENT") {
       throw Error("@RedLock decorator can only be used on SERVICE or COMPONENT classes.");
     }
@@ -72,11 +71,14 @@ export function RedLock(lockName?: string, options?: RedLockMethodOptions): Meth
       validateRedLockMethodOptions(options);
     }
 
+    // 保存类到IOC容器
+    IOCContainer.saveClass('COMPONENT', targetClass, targetClass.name);
+
     // 保存RedLock元数据到 IOC 容器（lockName已确定）
     IOCContainer.attachClassMetadata('COMPONENT', DecoratorType.REDLOCK, {
       method: methodName,
       name: lockName,  // 确定的锁名称，不会为undefined
       options
-    }, targetObj, methodName);
+    }, target as object, methodName);
   };
 }

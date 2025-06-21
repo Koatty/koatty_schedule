@@ -26,7 +26,7 @@ import { DecoratorType, getEffectiveTimezone } from "../config/config";
  * @param {RedLockOptions} options - RedLock 配置选项  
  * @param {Koatty} app - Koatty 应用实例
  */
-export async function injectSchedule(options: any, app: any): Promise<void> {
+export async function injectSchedule(_options: any, _app: any): Promise<void> {
   try {
     logger.Debug('Starting batch schedule injection...');
 
@@ -64,7 +64,7 @@ export async function injectSchedule(options: any, app: any): Promise<void> {
               const taskName = `${className}_${scheduleData.method}`;
               const tz = getEffectiveTimezone(scheduleData.timezone);
 
-              const cronJob = new CronJob(
+              new CronJob(
                 scheduleData.cron,
                 () => {
                   logger.Debug(`The schedule job ${taskName} started.`);
