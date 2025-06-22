@@ -16,6 +16,7 @@ Powerful scheduled tasks and distributed locking solution for Koatty framework.
 - 🌍 **Timezone Smart**: Three-tier priority system for timezone configuration
 - 📊 **Health Monitoring**: Built-in health checks and detailed status reporting
 - 🔧 **Easy Configuration**: Method-level and global configuration options
+- 🚀 **Smart Initialization**: Unified initialization timing for optimal dependency resolution
 
 ## Installation
 
@@ -391,7 +392,8 @@ DEBUG=koatty_schedule* npm start
 
 #### `@Scheduled(cron: string, timezone?: string)`
 - `cron`: Cron expression (6-part format with seconds)
-- `timezone`: Optional timezone override
+- `timezone`: Optional timezone override (defaults to 'Asia/Beijing')
+- **Processing**: Records metadata in IOC container, CronJob created at `appReady`
 
 #### `@RedLock(lockName?: string, options?: RedLockMethodOptions)`
 - `lockName`: Unique lock identifier (auto-generated if not provided)
