@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.3.0](https://github.com/thinkkoa/koatty_schedule/compare/v3.2.0...v3.3.0) (2025-06-22)
+
+
+### Features
+
+* enhance distributed locking and scheduling system with global configuration management and improved validation ([79a10f5](https://github.com/thinkkoa/koatty_schedule/commit/79a10f5a1ac66958aa44d3ea9151a65826748724))
+* improve RedLock singleton management with thread-safe initialization and lock renewal enhancements ([ec426aa](https://github.com/thinkkoa/koatty_schedule/commit/ec426aae3cd0d824661b1b94ae8043bf66ace606))
+* introduce component-specific metadata keys for scheduled and redlock decorators ([173e79a](https://github.com/thinkkoa/koatty_schedule/commit/173e79ac916c13b20c93d2efac7e69009cc5cf32))
+* refactor RedLock configuration and remove deprecated ScheduleConfig ([7bd4667](https://github.com/thinkkoa/koatty_schedule/commit/7bd4667242c6fd07cfd58a4322d93f4c4548100a))
+* update decorator types to support symbol property keys and improve IOC container integration ([f7b6382](https://github.com/thinkkoa/koatty_schedule/commit/f7b6382e855914176c130b10a769b03cc74c0f23))
+* use dynamic componentType instead of hardcoded constants for IOCContainer registration ([42ca073](https://github.com/thinkkoa/koatty_schedule/commit/42ca07353a8082b1af9e49d43914497d41cddd27))
+
+
+### Bug Fixes
+
+* 修复IOC容器元数据键格式不匹配问题 ([644714f](https://github.com/thinkkoa/koatty_schedule/commit/644714f20497196fb705e551880a9ef527257cb7))
+
+### [2.1.1](https://github.com/thinkkoa/koatty_schedule/compare/v2.1.0...v2.1.1) (2025-06-09)
+
+### [1.6.2](https://github.com/thinkkoa/koatty_schedule/compare/v2.0.1...v1.6.2) (2024-11-07)
+
 ## [3.2.0](https://github.com/thinkkoa/koatty_schedule/compare/v3.1.0...v3.2.0) (2025-06-22)
 
 
