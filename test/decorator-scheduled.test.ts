@@ -84,7 +84,7 @@ describe("decorator/scheduled.ts 测试覆盖", () => {
       
       expect(metadata.method).toBe("hourlyTask");
       expect(metadata.cron).toBe("0 0 * * * *");
-      expect(metadata.timezone).toBeUndefined();
+      expect(metadata.timezone).toBe("Asia/Beijing"); // 现在有默认值
     });
 
     it("应该验证cron表达式格式", () => {
