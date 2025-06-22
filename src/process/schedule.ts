@@ -30,7 +30,7 @@ export async function injectSchedule(_options: any, _app: any): Promise<void> {
   try {
     logger.Debug('Starting batch schedule injection...');
 
-    const componentList = IOCContainer.listClass(COMPONENT_SCHEDULED);
+    const componentList = IOCContainer.listClass("COMPONENT");
     for (const component of componentList) {
       const classMetadata = IOCContainer.getClassMetadata(COMPONENT_SCHEDULED, DecoratorType.SCHEDULED,
         component.target);

@@ -53,7 +53,7 @@ export async function injectRedLock(_options: RedLockOptions, _app: Koatty): Pro
   try {
     logger.Debug('Starting batch RedLock injection...');
 
-    const componentList = IOCContainer.listClass(COMPONENT_REDLOCK);
+    const componentList = IOCContainer.listClass("COMPONENT");
     for (const component of componentList) {
       const classMetadata = IOCContainer.getClassMetadata(COMPONENT_REDLOCK, DecoratorType.REDLOCK,
         component.target);
