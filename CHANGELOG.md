@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.2.0](https://github.com/thinkkoa/koatty_schedule/compare/v3.1.0...v3.2.0) (2025-06-22)
+
+
+### Features
+
+* introduce component-specific metadata keys for scheduled and redlock decorators ([803b350](https://github.com/thinkkoa/koatty_schedule/commit/803b3503489c02ab138b3f9f14cb520dd6c7fec4))
+
+
+### Bug Fixes
+
+* 修复IOC容器元数据键格式不匹配问题 ([065d456](https://github.com/thinkkoa/koatty_schedule/commit/065d456fc65004e25eb19838da96bf0a52cb2af1))
+
 ## [3.1.0](https://github.com/thinkkoa/koatty_schedule/compare/v3.0.0...v3.1.0) (2025-06-21)
 
 
