@@ -242,8 +242,8 @@ describe("process/schedule.ts 测试覆盖", () => {
 
       await injectSchedule({} as any, {} as any);
 
-      expect(mockGetEffectiveTimezone).toHaveBeenCalledWith("Europe/London");
-      expect(mockGetEffectiveTimezone).toHaveBeenCalledWith(undefined);
+      expect(mockGetEffectiveTimezone).toHaveBeenCalledWith({}, "Europe/London");
+      expect(mockGetEffectiveTimezone).toHaveBeenCalledWith({}, undefined);
       expect(mockCronJob).toHaveBeenCalledWith(
         "0 0 12 * * *",
         expect.any(Function),

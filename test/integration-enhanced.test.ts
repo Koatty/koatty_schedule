@@ -202,18 +202,18 @@ describe('Integration Enhanced Features', () => {
   describe('Intelligent Configuration System', () => {
     test('时区智能解析：用户指定 > 全局配置 > 默认值', () => {
       // 测试默认值
-      expect(getEffectiveTimezone()).toBe('Asia/Beijing');
+      expect(getEffectiveTimezone({})).toBe('Asia/Beijing');
 
       // 设置全局配置
       setGlobalScheduledOptions({ timezone: 'America/New_York' });
-      expect(getEffectiveTimezone()).toBe('America/New_York');
+      expect(getEffectiveTimezone(getGlobalScheduledOptions())).toBe('America/New_York');
 
       // 用户指定优先级最高
-      expect(getEffectiveTimezone('Europe/London')).toBe('Europe/London');
+      expect(getEffectiveTimezone(getGlobalScheduledOptions(), 'Europe/London')).toBe('Europe/London');
 
       // 空值应该fallback到全局配置
-      expect(getEffectiveTimezone('')).toBe('America/New_York');
-      expect(getEffectiveTimezone(undefined)).toBe('America/New_York');
+      expect(getEffectiveTimezone(getGlobalScheduledOptions(), '')).toBe('America/New_York');
+      expect(getEffectiveTimezone(getGlobalScheduledOptions(), undefined)).toBe('America/New_York');
 
       debugLog('Timezone priority system test passed');
     });
