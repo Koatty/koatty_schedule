@@ -72,7 +72,7 @@ export function RedLock(lockName?: string, options?: RedLockMethodOptions): Meth
     }
 
     // 保存类到IOC容器
-    IOCContainer.saveClass(COMPONENT_REDLOCK, targetClass, targetClass.name);
+    IOCContainer.saveClass(componentType, targetClass, targetClass.name);
 
     // 保存RedLock元数据到 IOC 容器（lockName已确定）
     IOCContainer.attachClassMetadata(COMPONENT_REDLOCK, DecoratorType.REDLOCK, {

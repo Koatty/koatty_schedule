@@ -67,7 +67,7 @@ export function Scheduled(cron: string, timezone?: string): MethodDecorator {
       throw Error("@Scheduled decorator can only be applied to methods");
     }
     // 保存类到IOC容器
-    IOCContainer.saveClass(COMPONENT_SCHEDULED, targetClass, targetClass.name);
+    IOCContainer.saveClass(componentType, targetClass, targetClass.name);
     // 保存调度元数据到 IOC 容器
     IOCContainer.attachClassMetadata(COMPONENT_SCHEDULED, DecoratorType.SCHEDULED, {
       method: methodName,
