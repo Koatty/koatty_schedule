@@ -15,7 +15,7 @@ import { DefaultLogger as logger } from "koatty_logger";
 import { Lock } from "@sesamecare-oss/redlock";
 import { timeoutPromise } from "../utils/lib";
 import { Koatty } from "koatty_core";
-import { DecoratorType, RedLockMethodOptions, getEffectiveRedLockOptions } from "../config/config";
+import { COMPONENT_REDLOCK, DecoratorType, RedLockMethodOptions, getEffectiveRedLockOptions } from "../config/config";
 
 /**
  * Initiation schedule locker client.
@@ -53,10 +53,10 @@ export async function injectRedLock(_options: RedLockOptions, _app: Koatty): Pro
   try {
     logger.Debug('Starting batch RedLock injection...');
 
-    const componentList = IOCContainer.listClass("COMPONENT");
+    const componentList = IOCContainer.listClass(COMPONENT_REDLOCK);
     for (const component of componentList) {
-      const classMetadata = IOCContainer.getClassMetadata('COMPONENT', DecoratorType.REDLOCK,
-        component);
+      const classMetadata = IOCContainer.getClassMetadata(COMPONENT_REDLOCK, DecoratorType.REDLOCK,
+        component.target);
       if (!classMetadata) {
         continue;
       }
@@ -71,7 +71,7 @@ export async function injectRedLock(_options: RedLockOptions, _app: Koatty): Pro
 
                      // 查找所有RedLock方法的元数据
            for (const [key, value] of Object.entries(metadata)) {
-             if (key.startsWith('REDLOCK:')) {
+             if (key.startsWith('REDLOCK')) {
                const redlockData = value as {
                  method: string;
                  name: string;  // 装饰器中已确定，不会为undefined
