@@ -10,6 +10,9 @@
 
 import { RedLockOptions } from "../locker/redlock";
 
+export const COMPONENT_SCHEDULED = 'COMPONENT_SCHEDULED';
+export const COMPONENT_REDLOCK = 'COMPONENT_REDLOCK';
+
 /**
  * Scheduled global options interface
  */

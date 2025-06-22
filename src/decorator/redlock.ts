@@ -9,7 +9,7 @@
  */
 
 import { IOCContainer } from "koatty_container";
-import { DecoratorType, RedLockMethodOptions, validateRedLockMethodOptions } from "../config/config";
+import { COMPONENT_REDLOCK, DecoratorType, RedLockMethodOptions, validateRedLockMethodOptions } from "../config/config";
 
 /**
  * Redis-based distributed lock decorator
@@ -72,10 +72,10 @@ export function RedLock(lockName?: string, options?: RedLockMethodOptions): Meth
     }
 
     // 保存类到IOC容器
-    IOCContainer.saveClass('COMPONENT', targetClass, targetClass.name);
+    IOCContainer.saveClass(COMPONENT_REDLOCK, targetClass, targetClass.name);
 
     // 保存RedLock元数据到 IOC 容器（lockName已确定）
-    IOCContainer.attachClassMetadata('COMPONENT', DecoratorType.REDLOCK, {
+    IOCContainer.attachClassMetadata(COMPONENT_REDLOCK, DecoratorType.REDLOCK, {
       method: methodName,
       name: lockName,  // 确定的锁名称，不会为undefined
       options
