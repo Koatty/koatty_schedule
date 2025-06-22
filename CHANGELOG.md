@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.3.1](https://github.com/thinkkoa/koatty_schedule/compare/v3.3.0...v3.3.1) (2025-06-22)
+
+
+### Bug Fixes
+
+* unify component type constant to 'COMPONENT' string literal in IOCContainer registration ([7098c7e](https://github.com/thinkkoa/koatty_schedule/commit/7098c7e2c326a6461b6b8b5c84d07a3ced75de5f))
+
 ## [3.3.0](https://github.com/thinkkoa/koatty_schedule/compare/v3.2.0...v3.3.0) (2025-06-22)
 
 
