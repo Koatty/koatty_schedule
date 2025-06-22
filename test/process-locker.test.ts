@@ -132,9 +132,9 @@ describe("process/locker.ts 测试覆盖", () => {
 
       await injectRedLock({} as any, {} as any);
 
-      expect(mockIOCContainer.listClass).toHaveBeenCalledWith(COMPONENT_REDLOCK);
+      expect(mockIOCContainer.listClass).toHaveBeenCalledWith("COMPONENT");
       expect(mockIOCContainer.getClassMetadata).toHaveBeenCalledWith(
-        COMPONENT_REDLOCK,
+        "COMPONENT_REDLOCK",
         DecoratorType.REDLOCK,
         expect.any(Function)
       );

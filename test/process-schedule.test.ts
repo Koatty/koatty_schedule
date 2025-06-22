@@ -54,9 +54,9 @@ describe("process/schedule.ts 测试覆盖", () => {
 
       await injectSchedule({} as any, {} as any);
 
-      expect(mockIOCContainer.listClass).toHaveBeenCalledWith(COMPONENT_SCHEDULED);
+      expect(mockIOCContainer.listClass).toHaveBeenCalledWith("COMPONENT");
       expect(mockIOCContainer.getClassMetadata).toHaveBeenCalledWith(
-        COMPONENT_SCHEDULED,
+        "COMPONENT_SCHEDULED",
         DecoratorType.SCHEDULED,
         expect.any(Function)
       );

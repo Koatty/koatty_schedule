@@ -36,7 +36,7 @@ describe("decorator/scheduled.ts 测试覆盖", () => {
       expect(mockValidateCronExpression).toHaveBeenCalledWith("0 */5 * * * *");
       expect(mockIOCContainer.getType).toHaveBeenCalledWith(TestService);
       expect(mockIOCContainer.saveClass).toHaveBeenCalledWith(
-        "SERVICE",
+        "COMPONENT",
         TestService,
         "TestService"
       );
@@ -308,7 +308,7 @@ describe("decorator/scheduled.ts 测试覆盖", () => {
 
       expect(mockIOCContainer.getType).toHaveBeenCalledWith(ExtendedService);
       expect(mockIOCContainer.saveClass).toHaveBeenCalledWith(
-        "SERVICE",
+        "COMPONENT",
         ExtendedService,
         "ExtendedService"
       );
