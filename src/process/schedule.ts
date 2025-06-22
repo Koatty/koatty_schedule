@@ -16,8 +16,9 @@ import { Koatty } from "koatty_core";
  * 在appReady时触发批量注入调度任务，确保所有初始化工作完成
  *
  * @param {Koatty} app - Koatty 应用实例
+ * @param {any} options - 调度任务配置
  */
-export async function initSchedule(app: Koatty): Promise<void> {
+export async function initSchedule(options: any, app: Koatty): Promise<void> {
   if (!app || !Helper.isFunction(app.once)) {
     logger.Warn(`Schedule initialization skipped: Koatty app not available or not initialized`);
     return;
@@ -25,7 +26,7 @@ export async function initSchedule(app: Koatty): Promise<void> {
   
   app.once("appReady", async function () {
     try {
-      await injectSchedule(app);
+      await injectSchedule(options);
       logger.Info('Schedule system initialized successfully');
     } catch (error) {
       logger.Error('Failed to initialize Schedule system:', error);
@@ -44,10 +45,8 @@ export async function initSchedule(app: Koatty): Promise<void> {
  */
 /**
  * 批量注入调度任务 - 从IOC容器读取类元数据并创建所有CronJob
- *
- * @param {Koatty} app - Koatty 应用实例
  */
-export async function injectSchedule(app: Koatty): Promise<void> {
+export async function injectSchedule(options: any): Promise<void> {
   try {
     logger.Debug('Starting batch schedule injection...');
 
@@ -83,7 +82,7 @@ export async function injectSchedule(app: Koatty): Promise<void> {
               }
 
               const taskName = `${className}_${scheduleData.method}`;
-              const tz = getEffectiveTimezone(scheduleData.timezone);
+              const tz = getEffectiveTimezone(options, scheduleData.timezone);
 
               new CronJob(
                 scheduleData.cron,

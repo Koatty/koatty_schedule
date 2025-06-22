@@ -9,7 +9,7 @@
  */
 
 import { IOCContainer } from "koatty_container";
-import { DecoratorType, RedLockMethodOptions, validateRedLockMethodOptions } from "../config/config";
+import { RedLockMethodOptions, validateRedLockMethodOptions } from "../config/config";
 import { redLockerDescriptor, generateLockName } from "../process/locker";
 
 /**

@@ -35,8 +35,9 @@ export async function initRedLock(options: RedLockOptions, app: Koatty): Promise
       if (Helper.isEmpty(options)) {
         throw Error(`Missing RedLock configuration. Please write a configuration item with the key name 'RedLock' in the db.ts file.`);
       }
+      // 获取RedLocker实例，在首次使用时自动初始化
       const redLocker = RedLocker.getInstance(options);
-      // 移除手动初始化调用，让RedLocker在首次使用时自动初始化
+      await redLocker.initialize();
       logger.Info('RedLock initialized successfully');
     } catch (error) {
       logger.Error('Failed to initialize RedLock:', error);
@@ -76,9 +77,6 @@ export function redLockerDescriptor(
   if (typeof value !== 'function') {
     throw new Error('Descriptor value must be a function');
   }
-
-  // 设置默认选项，合并方法级别的选项
-  const lockOptions = getEffectiveRedLockOptions(methodOptions);
 
   /**
    * Enhanced function wrapper with proper lock renewal and safety
@@ -149,7 +147,7 @@ export function redLockerDescriptor(
     async value(...props: unknown[]): Promise<unknown> {
       try {
         const redlock = RedLocker.getInstance();
-
+        const lockOptions = getEffectiveRedLockOptions(methodOptions);
         // Acquire a lock.
         const lockTime = lockOptions.lockTimeOut || 10000;
         if (lockTime <= 200) {

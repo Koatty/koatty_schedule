@@ -10,7 +10,7 @@ import { RedLock } from "./decorator/redlock";
 import { Scheduled } from "./decorator/scheduled";
 import { initRedLock } from "./process/locker";
 import { initSchedule } from "./process/schedule";
-import { ScheduledOptions, setGlobalScheduledOptions } from "./config/config";
+import { ScheduledOptions } from "./config/config";
 
 // Export the decorators
 export { RedLock, Scheduled };
@@ -45,12 +45,9 @@ const defaultOptions: ScheduledOptions = {
 export async function KoattyScheduled(options: ScheduledOptions, app: Koatty) {
   options = { ...defaultOptions, ...options };
   
-  // 保存全局配置
-  setGlobalScheduledOptions(options);
-  
   // 初始化RedLock（appReady时触发，确保所有依赖就绪）
   await initRedLock(options, app);
   
   // 初始化调度任务系统（appReady时触发，确保所有组件都已初始化）
-  await initSchedule(app);
+  await initSchedule(options, app);
 }

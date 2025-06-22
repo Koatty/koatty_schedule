@@ -193,8 +193,8 @@ export function getGlobalScheduledOptions(): ScheduledOptions {
  * @param userTimezone - User specified timezone
  * @returns Effective timezone
  */
-export function getEffectiveTimezone(userTimezone?: string): string {
-  return userTimezone || globalScheduledOptions.timezone || 'Asia/Beijing';
+export function getEffectiveTimezone(options: ScheduledOptions, userTimezone?: string): string {
+  return userTimezone || options.timezone || 'Asia/Beijing';
 }
 
 
