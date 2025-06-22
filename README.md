@@ -30,10 +30,8 @@ npm install koatty_schedule
 Use Koatty CLI to generate the plugin template:
 
 ```bash
-kt plugin
+kt plugin Scheduled
 ```
-
-### 2. Create Scheduled Plugin
 
 Create `src/plugin/Scheduled.ts`:
 
@@ -49,7 +47,7 @@ export class Scheduled implements IPlugin {
 }
 ```
 
-### 3. Configure Plugin
+### 2. Configure Plugin
 
 Update `src/config/plugin.ts`:
 
