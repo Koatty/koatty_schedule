@@ -9,7 +9,7 @@
  */
 
 import { Helper } from "koatty_lib";
-import { DecoratorType, validateCronExpression } from "../config/config";
+import { COMPONENT_SCHEDULED, DecoratorType, validateCronExpression } from "../config/config";
 import { IOCContainer } from "koatty_container";
 
 /**
@@ -67,9 +67,9 @@ export function Scheduled(cron: string, timezone?: string): MethodDecorator {
       throw Error("@Scheduled decorator can only be applied to methods");
     }
     // 保存类到IOC容器
-    IOCContainer.saveClass('COMPONENT', targetClass, targetClass.name);
+    IOCContainer.saveClass(COMPONENT_SCHEDULED, targetClass, targetClass.name);
     // 保存调度元数据到 IOC 容器
-    IOCContainer.attachClassMetadata('COMPONENT', DecoratorType.SCHEDULED, {
+    IOCContainer.attachClassMetadata(COMPONENT_SCHEDULED, DecoratorType.SCHEDULED, {
       method: methodName,
       cron,
       timezone  // 保存用户指定的值，可能为undefined
