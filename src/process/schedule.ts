@@ -9,8 +9,30 @@ import { Helper } from "koatty_lib";
 import { DefaultLogger as logger } from "koatty_logger";
 import { CronJob } from "cron";
 import { COMPONENT_SCHEDULED, DecoratorType, getEffectiveTimezone } from "../config/config";
+import { Koatty } from "koatty_core";
 
-
+/**
+ * 初始化调度任务系统
+ * 在appReady时触发批量注入调度任务，确保所有初始化工作完成
+ *
+ * @param {Koatty} app - Koatty 应用实例
+ */
+export async function initSchedule(app: Koatty): Promise<void> {
+  if (!app || !Helper.isFunction(app.once)) {
+    logger.Warn(`Schedule initialization skipped: Koatty app not available or not initialized`);
+    return;
+  }
+  
+  app.once("appReady", async function () {
+    try {
+      await injectSchedule(app);
+      logger.Info('Schedule system initialized successfully');
+    } catch (error) {
+      logger.Error('Failed to initialize Schedule system:', error);
+      throw error;
+    }
+  });
+}
 
 /**
  * Inject schedule job with enhanced error handling and validation
@@ -23,10 +45,9 @@ import { COMPONENT_SCHEDULED, DecoratorType, getEffectiveTimezone } from "../con
 /**
  * 批量注入调度任务 - 从IOC容器读取类元数据并创建所有CronJob
  *
- * @param {RedLockOptions} options - RedLock 配置选项  
  * @param {Koatty} app - Koatty 应用实例
  */
-export async function injectSchedule(_options: any, _app: any): Promise<void> {
+export async function injectSchedule(app: Koatty): Promise<void> {
   try {
     logger.Debug('Starting batch schedule injection...');
 

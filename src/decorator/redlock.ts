@@ -9,7 +9,8 @@
  */
 
 import { IOCContainer } from "koatty_container";
-import { COMPONENT_REDLOCK, DecoratorType, RedLockMethodOptions, validateRedLockMethodOptions } from "../config/config";
+import { DecoratorType, RedLockMethodOptions, validateRedLockMethodOptions } from "../config/config";
+import { redLockerDescriptor, generateLockName } from "../process/locker";
 
 /**
  * Redis-based distributed lock decorator
@@ -59,12 +60,8 @@ export function RedLock(lockName?: string, options?: RedLockMethodOptions): Meth
       throw Error("@RedLock decorator can only be applied to methods");
     }
 
-    // 生成唯一的锁名称：用户指定的 > 自动生成的唯一名称
-    if (!lockName || lockName.trim() === '') {
-      const randomSuffix = Math.random().toString(36).substring(2, 8); // 6位随机字符
-      const timestamp = Date.now().toString(36); // 时间戳转36进制
-      lockName = `${methodName}_${randomSuffix}_${timestamp}`;
-    }
+    // 生成锁名称：用户指定的 > 基于类名和方法名生成
+    const finalLockName = lockName || generateLockName(lockName, methodName, target);
 
     // 验证选项
     if (options) {
@@ -74,11 +71,18 @@ export function RedLock(lockName?: string, options?: RedLockMethodOptions): Meth
     // 保存类到IOC容器
     IOCContainer.saveClass("COMPONENT", targetClass, targetClass.name);
 
-    // 保存RedLock元数据到 IOC 容器（lockName已确定）
-    IOCContainer.attachClassMetadata(COMPONENT_REDLOCK, DecoratorType.REDLOCK, {
-      method: methodName,
-      name: lockName,  // 确定的锁名称，不会为undefined
-      options
-    }, target as object, methodName);
+    try {
+      // 直接在装饰器中包装方法，而不是延迟处理
+      const enhancedDescriptor = redLockerDescriptor(
+        descriptor,
+        finalLockName,
+        methodName,
+        options
+      );
+
+      return enhancedDescriptor;
+    } catch (error) {
+      throw new Error(`Failed to apply RedLock to ${methodName}: ${(error as Error).message}`);
+    }
   };
 }

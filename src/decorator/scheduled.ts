@@ -30,7 +30,7 @@ import { IOCContainer } from "koatty_container";
  * @returns {MethodDecorator}
  * @throws {Error} When cron expression is invalid or decorator is used on wrong class type
  */
-export function Scheduled(cron: string, timezone?: string): MethodDecorator {
+export function Scheduled(cron: string, timezone = 'Asia/Beijing'): MethodDecorator {
   // 参数验证
   if (Helper.isEmpty(cron)) {
     throw Error("Cron expression is required and cannot be empty");
@@ -72,7 +72,7 @@ export function Scheduled(cron: string, timezone?: string): MethodDecorator {
     IOCContainer.attachClassMetadata(COMPONENT_SCHEDULED, DecoratorType.SCHEDULED, {
       method: methodName,
       cron,
-      timezone  // 保存用户指定的值，可能为undefined
+      timezone  // 保存确定的时区值
     }, target as object, methodName);
   };
 }
