@@ -8,7 +8,7 @@ import { IOCContainer } from "koatty_container";
 import { Helper } from "koatty_lib";
 import { DefaultLogger as logger } from "koatty_logger";
 import { CronJob } from "cron";
-import { DecoratorType, getEffectiveTimezone } from "../config/config";
+import { COMPONENT_SCHEDULED, DecoratorType, getEffectiveTimezone } from "../config/config";
 
 
 
@@ -30,10 +30,10 @@ export async function injectSchedule(_options: any, _app: any): Promise<void> {
   try {
     logger.Debug('Starting batch schedule injection...');
 
-    const componentList = IOCContainer.listClass("COMPONENT");
+    const componentList = IOCContainer.listClass(COMPONENT_SCHEDULED);
     for (const component of componentList) {
-      const classMetadata = IOCContainer.getClassMetadata('COMPONENT', DecoratorType.SCHEDULED,
-        component);
+      const classMetadata = IOCContainer.getClassMetadata(COMPONENT_SCHEDULED, DecoratorType.SCHEDULED,
+        component.target);
       if (!classMetadata) {
         continue;
       }
@@ -48,7 +48,7 @@ export async function injectSchedule(_options: any, _app: any): Promise<void> {
 
           // 查找所有调度方法的元数据
           for (const [key, value] of Object.entries(metadata)) {
-            if (key.startsWith('SCHEDULED:')) {
+            if (key.startsWith('SCHEDULED')) {
               const scheduleData = value as {
                 method: string;
                 cron: string;
