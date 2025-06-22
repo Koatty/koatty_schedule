@@ -30,7 +30,7 @@ describe("decorator/redlock.ts 简化测试覆盖", () => {
 
       expect(mockIOCContainer.getType).toHaveBeenCalledWith(TestService);
       expect(mockIOCContainer.saveClass).toHaveBeenCalledWith(
-        COMPONENT_REDLOCK,
+        "SERVICE",
         TestService,
         "TestService"
       );
@@ -59,7 +59,7 @@ describe("decorator/redlock.ts 简化测试覆盖", () => {
 
       expect(mockIOCContainer.getType).toHaveBeenCalledWith(TestComponent);
       expect(mockIOCContainer.saveClass).toHaveBeenCalledWith(
-        COMPONENT_REDLOCK,
+        "COMPONENT",
         TestComponent,
         "TestComponent"
       );
@@ -282,7 +282,7 @@ describe("decorator/redlock.ts 简化测试覆盖", () => {
 
       expect(mockIOCContainer.getType).toHaveBeenCalledWith(ExtendedService);
       expect(mockIOCContainer.saveClass).toHaveBeenCalledWith(
-        COMPONENT_REDLOCK,
+        "SERVICE",
         ExtendedService,
         "ExtendedService"
       );
