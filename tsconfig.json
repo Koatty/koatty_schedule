@@ -49,6 +49,7 @@
     "allowSyntheticDefaultImports": true /* Allow default imports from modules with no default export. This does not affect code emit, just typechecking. */,
     "resolveJsonModule": true,
     "esModuleInterop": true,
+    "skipLibCheck": true, /* Skip type checking of declaration files from node_modules */
     "useUnknownInCatchVariables": false, /* Default catch clause variables as unknown instead of any. */
     /* Source Map Options */
     // "sourceRoot": "./",                    /* Specify the location where debugger should locate TypeScript files instead of source locations. */

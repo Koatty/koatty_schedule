@@ -9,17 +9,33 @@
  */
 
 /**
- * 返回一个 Promise，在指定时间后 reject
- * @param ms 
- * @returns 
+ * 返回一个可取消的 Promise，在指定时间后 reject
+ * @param ms 超时时间（毫秒）
+ * @returns 带有 cancel 方法的 Promise
  */
-export function timeoutPromise(ms: number) {
-  return new Promise((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      clearTimeout(timeoutId);
+export interface CancelablePromise<T> extends Promise<T> {
+  cancel: () => void;
+}
+
+export function timeoutPromise(ms: number): CancelablePromise<never> {
+  let timeoutId: NodeJS.Timeout | null = null;
+  
+  const promise = new Promise<never>((resolve, reject) => {
+    timeoutId = setTimeout(() => {
+      timeoutId = null;
       reject(new Error('TIME_OUT_ERROR'));
     }, ms);
-  });
+  }) as CancelablePromise<never>;
+
+  // 添加取消方法，防止内存泄漏
+  promise.cancel = () => {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+  };
+
+  return promise;
 }
 /**
  * @description: 使用 Promise.resolve 包装不确定的函数，并捕获错误

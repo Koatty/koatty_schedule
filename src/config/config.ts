@@ -47,51 +47,139 @@ export enum DecoratorType {
 }
 
 /**
- * Validate cron expression format
+ * Validate cron expression format (supports both 5-part and 6-part formats)
+ * 
+ * 6-part format: second minute hour day month weekday
+ * 5-part format: minute hour day month weekday
+ * 
  * @param cron - Cron expression to validate
  * @throws {Error} When cron expression is invalid
  */
 export function validateCronExpression(cron: string): void {
   if (!cron || typeof cron !== 'string') {
-    throw new Error('Cron expression must be a non-empty string');
+    throw new Error('Cron 表达式必须是非空字符串 (Cron expression must be a non-empty string)');
   }
 
   const cronParts = cron.trim().split(/\s+/);
   
   // Cron expressions should have 5 or 6 parts (with or without seconds)
   if (cronParts.length < 5 || cronParts.length > 6) {
-    throw new Error(`Invalid cron expression format. Expected 5 or 6 parts, got ${cronParts.length}`);
+    throw new Error(`Cron 表达式格式无效。期望 5 或 6 部分，实际得到 ${cronParts.length} 部分 (Invalid cron format. Expected 5 or 6 parts, got ${cronParts.length})`);
   }
 
-  // For 6-part cron (with seconds), validate each part
-  if (cronParts.length === 6) {
-    const [seconds, minutes, hours] = cronParts;
-    
-    // Basic validation for obvious invalid values
-    if (!/^(\*|[0-9]|[0-5][0-9]|\*\/[0-9]+|[0-9]+-[0-9]+|[0-9]+(,[0-9]+)*)$/.test(seconds)) {
-      throw new Error('Invalid seconds field in cron expression');
-    }
-    if (!/^(\*|[0-9]|[0-5][0-9]|\*\/[0-9]+|[0-9]+-[0-9]+|[0-9]+(,[0-9]+)*)$/.test(minutes)) {
-      throw new Error('Invalid minutes field in cron expression');
-    }
-    if (!/^(\*|[0-9]|1[0-9]|2[0-3]|\*\/[0-9]+|[0-9]+-[0-9]+|[0-9]+(,[0-9]+)*)$/.test(hours)) {
-      throw new Error('Invalid hours field in cron expression');
-    }
-    
-    // Check for simple out-of-range values
-    const secondsValue = parseInt(seconds);
-    if (!isNaN(secondsValue) && (secondsValue < 0 || secondsValue > 59)) {
-      throw new Error('Seconds value must be between 0 and 59');
-    }
+  // Determine if this is a 6-part (with seconds) or 5-part expression
+  const hasSecs = cronParts.length === 6;
+  const offset = hasSecs ? 0 : -1;
+
+  // Extract parts with proper indexing
+  const seconds = hasSecs ? cronParts[0] : null;
+  const minutes = cronParts[offset + 1];
+  const hours = cronParts[offset + 2];
+  const dayOfMonth = cronParts[offset + 3];
+  const month = cronParts[offset + 4];
+  const dayOfWeek = cronParts[offset + 5];
+
+  // Validate seconds (0-59) if present
+  if (seconds !== null) {
+    validateCronField(seconds, 0, 59, 'seconds', '秒');
   }
-  
-  // Additional basic checks for common invalid patterns
-  if (cron.includes('60')) {
-    // Check if 60 appears as a standalone number (not part of a larger number)
-    const parts = cron.split(/[\s,\-\/]/);
-    if (parts.some(part => part === '60')) {
-      throw new Error('Invalid time value: 60 is not valid for any time field');
+
+  // Validate minutes (0-59)
+  validateCronField(minutes, 0, 59, 'minutes', '分钟');
+
+  // Validate hours (0-23)
+  validateCronField(hours, 0, 23, 'hours', '小时');
+
+  // Validate day of month (1-31)
+  validateCronField(dayOfMonth, 1, 31, 'day of month', '日期');
+
+  // Validate month (1-12 or JAN-DEC)
+  validateCronField(month, 1, 12, 'month', '月份', ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']);
+
+  // Validate day of week (0-7 or SUN-SAT, where 0 and 7 both represent Sunday)
+  validateCronField(dayOfWeek, 0, 7, 'day of week', '星期', ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']);
+}
+
+/**
+ * Validate individual cron field
+ * @param field - Field value to validate
+ * @param min - Minimum allowed value
+ * @param max - Maximum allowed value
+ * @param fieldName - English field name for error messages
+ * @param fieldNameCN - Chinese field name for error messages
+ * @param allowedStrings - Optional array of allowed string values (e.g., month/weekday names)
+ */
+function validateCronField(
+  field: string,
+  min: number,
+  max: number,
+  fieldName: string,
+  fieldNameCN: string,
+  allowedStrings?: string[]
+): void {
+  // Allow wildcard
+  if (field === '*') {
+    return;
+  }
+
+  // Allow question mark (for day of month / day of week)
+  if (field === '?') {
+    return;
+  }
+
+  // Check for allowed string values (month/weekday names)
+  if (allowedStrings && allowedStrings.some(str => field.toUpperCase().includes(str))) {
+    return;
+  }
+
+  // Step values (e.g., */5, 0-30/5)
+  if (field.includes('/')) {
+    const [range, step] = field.split('/');
+    const stepValue = parseInt(step);
+    
+    if (isNaN(stepValue) || stepValue <= 0) {
+      throw new Error(`${fieldNameCN}字段的步长值无效: ${step} (Invalid step value for ${fieldName}: ${step})`);
     }
+    
+    if (range !== '*') {
+      validateCronField(range, min, max, fieldName, fieldNameCN, allowedStrings);
+    }
+    return;
+  }
+
+  // Range values (e.g., 1-5)
+  if (field.includes('-')) {
+    const [start, end] = field.split('-');
+    const startValue = parseInt(start);
+    const endValue = parseInt(end);
+    
+    if (isNaN(startValue) || startValue < min || startValue > max) {
+      throw new Error(`${fieldNameCN}字段的范围起始值无效: ${start}，必须在 ${min}-${max} 之间 (Invalid range start for ${fieldName}: ${start}, must be between ${min}-${max})`);
+    }
+    
+    if (isNaN(endValue) || endValue < min || endValue > max) {
+      throw new Error(`${fieldNameCN}字段的范围结束值无效: ${end}，必须在 ${min}-${max} 之间 (Invalid range end for ${fieldName}: ${end}, must be between ${min}-${max})`);
+    }
+    
+    if (startValue > endValue) {
+      throw new Error(`${fieldNameCN}字段的范围无效: ${start}-${end}，起始值不能大于结束值 (Invalid range for ${fieldName}: ${start}-${end}, start cannot be greater than end)`);
+    }
+    return;
+  }
+
+  // List values (e.g., 1,3,5)
+  if (field.includes(',')) {
+    const values = field.split(',');
+    for (const value of values) {
+      validateCronField(value.trim(), min, max, fieldName, fieldNameCN, allowedStrings);
+    }
+    return;
+  }
+
+  // Single numeric value
+  const numValue = parseInt(field);
+  if (isNaN(numValue) || numValue < min || numValue > max) {
+    throw new Error(`${fieldNameCN}字段的值无效: ${field}，必须在 ${min}-${max} 之间 (Invalid ${fieldName} value: ${field}, must be between ${min}-${max})`);
   }
 }
 

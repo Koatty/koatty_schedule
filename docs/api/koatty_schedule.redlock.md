@@ -64,6 +64,7 @@ _(Optional)_ Lock configuration options for this method
 
 </td></tr>
 </tbody></table>
+
 **Returns:**
 
 MethodDecorator

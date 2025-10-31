@@ -66,6 +66,7 @@ Cron expression format: \* Seconds: 0-59 \* Minutes: 0-59 \* Hours: 0-23 \* Day 
 
 </td></tr>
 </tbody></table>
+
 **Returns:**
 
 MethodDecorator

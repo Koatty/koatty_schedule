@@ -4,6 +4,80 @@
 
 ## koatty\_schedule package
 
+## Classes
+
+<table><thead><tr><th>
+
+Class
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+[RedisClientAdapter](./koatty_schedule.redisclientadapter.md)
+
+
+</td><td>
+
+Redis client wrapper that implements IRedisClient interface Wraps ioredis client to provide unified interface
+
+
+</td></tr>
+<tr><td>
+
+[RedisFactory](./koatty_schedule.redisfactory.md)
+
+
+</td><td>
+
+Redis client factory Creates appropriate Redis client based on configuration
+
+
+</td></tr>
+<tr><td>
+
+[RedLocker](./koatty_schedule.redlocker.md)
+
+
+</td><td>
+
+RedLock distributed lock manager Integrated with koatty IOC container Implements singleton pattern for safe instance management Implements IDistributedLock interface for abstraction
+
+
+</td></tr>
+</tbody></table>
+
+## Enumerations
+
+<table><thead><tr><th>
+
+Enumeration
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+[RedisMode](./koatty_schedule.redismode.md)
+
+
+</td><td>
+
+Redis connection mode
+
+
+</td></tr>
+</tbody></table>
+
 ## Functions
 
 <table><thead><tr><th>
@@ -52,6 +126,98 @@ Schedule task decorator with optimized preprocessing
 </td></tr>
 </tbody></table>
 
+## Interfaces
+
+<table><thead><tr><th>
+
+Interface
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+[IDistributedLock](./koatty_schedule.idistributedlock.md)
+
+
+</td><td>
+
+Abstract distributed lock interface Allows for different lock implementations (RedLock, Zookeeper, etc.)
+
+
+</td></tr>
+<tr><td>
+
+[ILockOptions](./koatty_schedule.ilockoptions.md)
+
+
+</td><td>
+
+Lock configuration options
+
+
+</td></tr>
+<tr><td>
+
+[IRedisClient](./koatty_schedule.iredisclient.md)
+
+
+</td><td>
+
+Abstract Redis client interface Provides unified interface for different Redis implementations
+
+
+</td></tr>
+<tr><td>
+
+[RedisClusterConfig](./koatty_schedule.redisclusterconfig.md)
+
+
+</td><td>
+
+Cluster configuration
+
+
+</td></tr>
+<tr><td>
+
+[RedisSentinelConfig](./koatty_schedule.redissentinelconfig.md)
+
+
+</td><td>
+
+Sentinel configuration
+
+
+</td></tr>
+<tr><td>
+
+[RedisStandaloneConfig](./koatty_schedule.redisstandaloneconfig.md)
+
+
+</td><td>
+
+Standalone configuration
+
+
+</td></tr>
+<tr><td>
+
+[RedLockOptions](./koatty_schedule.redlockoptions.md)
+
+
+</td><td>
+
+Configuration options for RedLock
+
+
+</td></tr>
+</tbody></table>
+
 ## Variables
 
 <table><thead><tr><th>
@@ -75,3 +241,30 @@ Description
 
 </td></tr>
 </tbody></table>
+
+## Type Aliases
+
+<table><thead><tr><th>
+
+Type Alias
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+[RedisConfig](./koatty_schedule.redisconfig.md)
+
+
+</td><td>
+
+Union type for all Redis configurations
+
+
+</td></tr>
+</tbody></table>
+

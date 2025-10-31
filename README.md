@@ -11,12 +11,15 @@ Powerful scheduled tasks and distributed locking solution for Koatty framework.
 - 🕒 **Flexible Scheduling**: Support for cron expressions with timezone configuration
 - 🔐 **Distributed Locking**: RedLock-based distributed locks with auto-extension
 - 🏗️ **Plugin Architecture**: Native Koatty plugin integration 
-- ⚡ **Performance Optimized**: Singleton pattern, caching, and batch processing
-- 🛡️ **Enhanced Safety**: Lock renewal logic with timeout protection
+- ⚡ **Performance Optimized**: Singleton pattern, caching, and memory-leak-free design
+- 🛡️ **Enhanced Safety**: Lock renewal logic with timeout protection and automatic cleanup
 - 🌍 **Timezone Smart**: Three-tier priority system for timezone configuration
 - 📊 **Health Monitoring**: Built-in health checks and detailed status reporting
 - 🔧 **Easy Configuration**: Method-level and global configuration options
 - 🚀 **Smart Initialization**: Unified initialization timing for optimal dependency resolution
+- 🎯 **Advanced Validation**: Comprehensive cron expression validation with bilingual error messages
+- 🔌 **Redis Multi-Mode**: Support for Standalone, Sentinel, and Cluster Redis deployments
+- 🧩 **Extensible Architecture**: Abstract interfaces for easy customization and extension
 
 ## Installation
 
@@ -53,6 +56,8 @@ export class Scheduled implements IPlugin {
 Update `src/config/plugin.ts`:
 
 ```typescript
+import { RedisMode } from "koatty_schedule";
+
 export default {
   list: ["Scheduled"], // Plugin loading order
   config: {
@@ -62,6 +67,7 @@ export default {
       maxRetries: 3,
       retryDelayMs: 200,
       redisConfig: {
+        mode: RedisMode.STANDALONE,  // or SENTINEL, CLUSTER
         host: "127.0.0.1",
         port: 6379,
         db: 0,
@@ -119,11 +125,96 @@ export class CriticalTaskService {
 
 ## Advanced Configuration
 
+### Redis Deployment Modes
+
+koatty_schedule supports three Redis deployment modes:
+
+#### Standalone Mode (Default)
+
+```typescript
+import { RedisMode } from "koatty_schedule";
+
+export default {
+  list: ["Scheduled"],
+  config: {
+    Scheduled: {
+      redisConfig: {
+        mode: RedisMode.STANDALONE,  // or omit for default
+        host: "127.0.0.1",
+        port: 6379,
+        password: "your-password",
+        db: 0,
+        keyPrefix: "koatty:schedule:"
+      }
+    }
+  }
+};
+```
+
+#### Sentinel Mode (High Availability)
+
+```typescript
+import { RedisMode } from "koatty_schedule";
+
+export default {
+  list: ["Scheduled"],
+  config: {
+    Scheduled: {
+      redisConfig: {
+        mode: RedisMode.SENTINEL,
+        sentinels: [
+          { host: "192.168.1.10", port: 26379 },
+          { host: "192.168.1.11", port: 26379 },
+          { host: "192.168.1.12", port: 26379 }
+        ],
+        name: "mymaster",  // Sentinel master name
+        password: "your-password",
+        sentinelPassword: "sentinel-password",  // Optional
+        db: 0,
+        keyPrefix: "koatty:schedule:"
+      }
+    }
+  }
+};
+```
+
+#### Cluster Mode (Horizontal Scaling)
+
+```typescript
+import { RedisMode } from "koatty_schedule";
+
+export default {
+  list: ["Scheduled"],
+  config: {
+    Scheduled: {
+      redisConfig: {
+        mode: RedisMode.CLUSTER,
+        nodes: [
+          { host: "192.168.1.10", port: 7000 },
+          { host: "192.168.1.11", port: 7001 },
+          { host: "192.168.1.12", port: 7002 },
+          { host: "192.168.1.13", port: 7003 },
+          { host: "192.168.1.14", port: 7004 },
+          { host: "192.168.1.15", port: 7005 }
+        ],
+        redisOptions: {
+          password: "your-password",
+          db: 0
+        },
+        keyPrefix: "koatty:schedule:"
+      }
+    }
+  }
+};
+```
+
 ### Global Plugin Configuration
 
 Configure global settings in `src/config/plugin.ts`:
 
 ```typescript
+import { RedisMode } from "koatty_schedule";
+
 export default {
   list: ["Scheduled"],
   config: {
@@ -139,6 +230,7 @@ export default {
       
       // Redis configuration for distributed locks
       redisConfig: {
+        mode: RedisMode.STANDALONE,
         host: "redis.example.com",
         port: 6379,
         password: "your-password",
@@ -324,6 +416,10 @@ export class LongRunningTaskService {
 
 ## Cron Expression Examples
 
+koatty_schedule supports both 5-part and 6-part (with seconds) cron expressions with comprehensive validation:
+
+### Basic Examples
+
 ```typescript
 export class CronExamplesService {
   
@@ -345,6 +441,90 @@ export class CronExamplesService {
   @Scheduled('*/10 * * * * *')  // Every 10 seconds
   async frequentTask() { }
 }
+```
+
+### Advanced Examples (NEW in v3.4.0)
+
+```typescript
+export class AdvancedCronService {
+  
+  // Step values - Every 2 hours during business hours
+  @Scheduled('0 0 9-17/2 * * 1-5')
+  async businessHoursTask() { }
+
+  // List values - Run at 9 AM, 12 PM, and 6 PM
+  @Scheduled('0 0 9,12,18 * * *')
+  async specificHoursTask() { }
+
+  // Month names - Run on first day of Q1 months
+  @Scheduled('0 0 0 1 JAN,FEB,MAR *')
+  async quarterlyTask() { }
+
+  // Weekday names - Weekend morning task
+  @Scheduled('0 0 10 * * SAT,SUN')
+  async weekendTask() { }
+
+  // Complex expression - Every 15 minutes during working hours on weekdays
+  @Scheduled('0 */15 9-17 * * MON-FRI')
+  async frequentBusinessTask() { }
+
+  // Range with step - Every 3 days
+  @Scheduled('0 0 0 */3 * *')
+  async everyThreeDaysTask() { }
+}
+```
+
+### Cron Expression Format
+
+**6-part format (with seconds):**
+```
+┌────────────── second (0-59)
+│ ┌──────────── minute (0-59)
+│ │ ┌────────── hour (0-23)
+│ │ │ ┌──────── day of month (1-31)
+│ │ │ │ ┌────── month (1-12 or JAN-DEC)
+│ │ │ │ │ ┌──── day of week (0-7 or SUN-SAT, 0 and 7 are Sunday)
+│ │ │ │ │ │
+* * * * * *
+```
+
+**5-part format (without seconds):**
+```
+┌──────────── minute (0-59)
+│ ┌────────── hour (0-23)
+│ │ ┌──────── day of month (1-31)
+│ │ │ ┌────── month (1-12 or JAN-DEC)
+│ │ │ │ ┌──── day of week (0-7 or SUN-SAT)
+│ │ │ │ │
+* * * * *
+```
+
+### Special Characters
+
+- `*` - Any value
+- `,` - Value list separator (e.g., `1,3,5`)
+- `-` - Range of values (e.g., `1-5`)
+- `/` - Step values (e.g., `*/15` or `0-30/5`)
+
+### Validation Features (NEW)
+
+The enhanced validator will catch common errors:
+
+```typescript
+// ❌ Invalid - seconds out of range
+@Scheduled('60 0 0 * * *')  // Error: 秒字段的值无效: 60，必须在 0-59 之间
+
+// ❌ Invalid - hours out of range
+@Scheduled('0 0 25 * * *')  // Error: 小时字段的值无效: 25，必须在 0-23 之间
+
+// ❌ Invalid - invalid step value
+@Scheduled('0 */0 * * * *')  // Error: 分钟字段的步长值无效: 0
+
+// ❌ Invalid - range start > end
+@Scheduled('0 0 17-9 * * *')  // Error: 小时字段的范围无效: 17-9
+
+// ✅ Valid - all checks passed
+@Scheduled('0 */15 9-17 * * 1-5')  // Every 15 minutes, 9-5, weekdays
 ```
 
 ## Troubleshooting
@@ -391,32 +571,92 @@ DEBUG=koatty_schedule* npm start
 ### Decorators
 
 #### `@Scheduled(cron: string, timezone?: string)`
-- `cron`: Cron expression (6-part format with seconds)
+- `cron`: Cron expression (5 or 6-part format, with comprehensive validation)
 - `timezone`: Optional timezone override (defaults to 'Asia/Beijing')
 - **Processing**: Records metadata in IOC container, CronJob created at `appReady`
+- **Validation**: Full validation of all cron fields with bilingual error messages
 
 #### `@RedLock(lockName?: string, options?: RedLockMethodOptions)`
 - `lockName`: Unique lock identifier (auto-generated if not provided)
 - `options`: Method-level lock configuration
+- **Features**: Automatic lock renewal (up to 3 times), memory-leak-free implementation
 
 ### Configuration Types
 
 ```typescript
+// Scheduled options with Redis mode support
 interface ScheduledOptions {
   timezone?: string;
   lockTimeOut?: number;
   maxRetries?: number;
   retryDelayMs?: number;
   clockDriftFactor?: number;
-  redisConfig?: RedisConfig;
+  redisConfig?: RedisConfig;  // Supports Standalone, Sentinel, Cluster
 }
 
+// RedLock method-level options
 interface RedLockMethodOptions {
   lockTimeOut?: number;
   maxRetries?: number;
   retryDelayMs?: number;
   clockDriftFactor?: number;
 }
+
+// Redis configuration (NEW in v3.4.0)
+enum RedisMode {
+  STANDALONE = 'standalone',
+  SENTINEL = 'sentinel',
+  CLUSTER = 'cluster'
+}
+
+interface RedisStandaloneConfig {
+  mode?: RedisMode.STANDALONE;
+  host: string;
+  port: number;
+  password?: string;
+  db?: number;
+  keyPrefix?: string;
+}
+
+interface RedisSentinelConfig {
+  mode: RedisMode.SENTINEL;
+  sentinels: Array<{ host: string; port: number }>;
+  name: string;  // Master name
+  password?: string;
+  sentinelPassword?: string;
+  db?: number;
+  keyPrefix?: string;
+}
+
+interface RedisClusterConfig {
+  mode: RedisMode.CLUSTER;
+  nodes: Array<{ host: string; port: number }>;
+  redisOptions?: {
+    password?: string;
+    db?: number;
+  };
+  keyPrefix?: string;
+}
+```
+
+### Exported Interfaces (NEW in v3.4.0)
+
+For advanced customization and extension:
+
+```typescript
+import {
+  IDistributedLock,     // Abstract distributed lock interface
+  IRedisClient,         // Abstract Redis client interface
+  RedisFactory,         // Redis client factory
+  RedisClientAdapter,   // Redis client adapter
+  RedLocker             // RedLock implementation
+} from "koatty_schedule";
+
+// Example: Custom health check
+const redLocker = RedLocker.getInstance();
+const health = await redLocker.healthCheck();
+console.log(health.status);  // 'healthy' | 'unhealthy'
+console.log(health.details);  // Detailed status information
 ```
 
 ## Version Compatibility
@@ -424,6 +664,59 @@ interface RedLockMethodOptions {
 - **Koatty**: >= 2.0.0
 - **Node.js**: >= 14.0.0
 - **Redis**: >= 3.0.0
+- **Redis Sentinel**: >= 3.0.0 (for high availability)
+- **Redis Cluster**: >= 3.0.0 (for horizontal scaling)
+
+## What's New in v3.4.0 🎉
+
+### 🐛 Bug Fixes
+
+- **Fixed memory leak** in `timeoutPromise` - timers are now properly cleaned up
+- **Improved initialization cleanup** - prevents state inconsistency on retry
+
+### ✨ New Features
+
+- **Redis Multi-Mode Support**: Standalone, Sentinel, and Cluster modes
+- **Enhanced Cron Validation**: Complete validation of all fields with bilingual error messages
+- **Abstract Interfaces**: `IDistributedLock` and `IRedisClient` for extensibility
+- **Redis Factory**: `RedisFactory` for flexible Redis client creation
+
+### 🚀 Improvements
+
+- Memory-leak-free design for long-running applications
+- Better error messages with Chinese and English support
+- Comprehensive cron expression validation (steps, ranges, lists, month/weekday names)
+- Health check now reports Redis mode information
+
+### 📖 Documentation
+
+- Added `UPGRADE_GUIDE.md` with migration instructions
+- Added `IMPROVEMENTS_SUMMARY.md` with technical details
+- Enhanced README with Redis multi-mode examples
+
+## Migration from v3.3.x
+
+Most code works without changes. To use new features:
+
+```typescript
+// Optional: Explicitly set Redis mode (defaults to STANDALONE)
+import { RedisMode } from "koatty_schedule";
+
+redisConfig: {
+  mode: RedisMode.STANDALONE,  // or SENTINEL, CLUSTER
+  // ... rest of config
+}
+```
+
+See [UPGRADE_GUIDE.md](UPGRADE_GUIDE.md) for details.
+
+## Performance & Stability
+
+- ✅ **Memory Stable**: No leaks in long-running applications
+- ✅ **Production Ready**: Used in production environments
+- ✅ **Well Tested**: Comprehensive test coverage
+- ✅ **High Availability**: Sentinel mode support
+- ✅ **Scalable**: Cluster mode for horizontal scaling
 
 ## License
 
@@ -438,3 +731,9 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 - 📚 [Documentation](https://koatty.js.org/)
 - 🐛 [Issues](https://github.com/koattyjs/koatty_schedule/issues)
 - 💬 [Discussions](https://github.com/koattyjs/koatty_schedule/discussions)
+- 📖 [Upgrade Guide](UPGRADE_GUIDE.md)
+- 📝 [Changelog](CHANGELOG.md)
+
+---
+
+**Maintained with ❤️ by the Koatty Team**

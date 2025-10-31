@@ -279,10 +279,10 @@ describe('Enhanced RedLock Features', () => {
     test('应该返回健康状态', async () => {
       const redLocker = RedLocker.getInstance();
       
-      // Mock healthy state
+      // Mock healthy state - 需要 mock redisClient 而不是 redis
       (redLocker as any).isInitialized = true;
       (redLocker as any).redlock = { some: 'mock' };
-      (redLocker as any).redis = { status: 'ready' };
+      (redLocker as any).redisClient = { status: 'ready' };
 
       const health = await redLocker.healthCheck();
 

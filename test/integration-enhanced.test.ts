@@ -288,10 +288,10 @@ describe('Integration Enhanced Features', () => {
     test('健康检查应该报告详细状态', async () => {
       const redLocker = RedLocker.getInstance();
       
-      // Mock 健康状态
+      // Mock 健康状态 - 需要 mock redisClient 而不是 redis
       (redLocker as any).isInitialized = true;
       (redLocker as any).redlock = { initialized: true };
-      (redLocker as any).redis = { status: 'ready' };
+      (redLocker as any).redisClient = { status: 'ready' };
 
       const health = await redLocker.healthCheck();
 

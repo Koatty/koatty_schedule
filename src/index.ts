@@ -11,9 +11,24 @@ import { Scheduled } from "./decorator/scheduled";
 import { initRedLock } from "./process/locker";
 import { initSchedule } from "./process/schedule";
 import { ScheduledOptions } from "./config/config";
+import { RedisMode } from "./locker/interface";
 
 // Export the decorators
 export { RedLock, Scheduled };
+
+// Export types and interfaces
+export { RedLocker, RedLockOptions } from "./locker/redlock";
+export { 
+  IDistributedLock, 
+  IRedisClient, 
+  ILockOptions,
+  RedisConfig,
+  RedisMode,
+  RedisStandaloneConfig,
+  RedisSentinelConfig,
+  RedisClusterConfig
+} from "./locker/interface";
+export { RedisFactory, RedisClientAdapter } from "./locker/redis-factory";
 
 /**
  * @deprecated Use RedLock instead. This will be removed in v3.0.0
@@ -23,6 +38,7 @@ export const SchedulerLock = RedLock;
 /** 
  * defaultOptions
  */
+
 const defaultOptions: ScheduledOptions = {
   timezone: "Asia/Beijing",
   lockTimeOut: 10000,
@@ -30,6 +46,7 @@ const defaultOptions: ScheduledOptions = {
   maxRetries: 3,
   retryDelayMs: 200,
   redisConfig: {
+    mode: RedisMode.STANDALONE,
     host: "localhost",
     port: 6379,
     password: "",

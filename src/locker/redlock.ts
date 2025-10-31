@@ -9,29 +9,16 @@
  */
 
 import { Redlock, Lock, Settings } from "@sesamecare-oss/redlock";
-import { Redis } from "ioredis";
 import { DefaultLogger as logger } from "koatty_logger";
 import { IOCContainer } from "koatty_container";
-
-/**
- * Redis connection configuration
- */
-export interface RedisConfig {
-  host?: string;
-  port?: number;
-  password?: string;
-  db?: number;
-  keyPrefix?: string;
-}
+import { IDistributedLock, ILockOptions, RedisConfig, RedisMode } from "./interface";
+import { RedisFactory, RedisClientAdapter } from "./redis-factory";
 
 /**
  * Configuration options for RedLock
+ * @deprecated Use ILockOptions from interface instead
  */
-export interface RedLockOptions extends Partial<Settings> {
-  lockTimeOut?: number;
-  clockDriftFactor?: number;
-  maxRetries?: number;
-  retryDelayMs?: number;
+export interface RedLockOptions extends ILockOptions {
   redisConfig?: RedisConfig;
 }
 
@@ -43,12 +30,8 @@ const defaultRedLockConfig: RedLockOptions = {
   clockDriftFactor: 0.01,
   maxRetries: 3,
   retryDelayMs: 200,
-  driftFactor: 0.01,
-  retryCount: 3,
-  retryDelay: 200,
-  retryJitter: 200,
-  automaticExtensionThreshold: 500,
   redisConfig: {
+    mode: RedisMode.STANDALONE,
     host: '127.0.0.1',
     port: 6379,
     password: '',
@@ -58,16 +41,28 @@ const defaultRedLockConfig: RedLockOptions = {
 };
 
 /**
+ * Default Redlock Settings for @sesamecare-oss/redlock
+ */
+const defaultRedlockSettings: Partial<Settings> = {
+  driftFactor: 0.01,
+  retryCount: 3,
+  retryDelay: 200,
+  retryJitter: 200,
+  automaticExtensionThreshold: 500
+};
+
+/**
  * RedLock distributed lock manager
  * Integrated with koatty IOC container
  * Implements singleton pattern for safe instance management
+ * Implements IDistributedLock interface for abstraction
  */
-export class RedLocker {
+export class RedLocker implements IDistributedLock {
   private static instance: RedLocker | null = null;
   private static readonly instanceLock = Symbol('RedLocker.instanceLock');
   
   private redlock: Redlock | null = null;
-  private redis: Redis | null = null;
+  private redisClient: RedisClientAdapter | null = null;
   private config: RedLockOptions;
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
@@ -167,8 +162,12 @@ export class RedLocker {
     try {
       await this.initializationPromise;
     } catch (error) {
-      // 初始化失败时清理缓存，允许重试
+      // 初始化失败时完整清理状态，允许重试
       this.initializationPromise = null;
+      this.isInitialized = false;
+      this.redlock = null;
+      // 注意：不清理 redis 连接，因为它可能来自 IOC 容器
+      logger.Warn('RedLocker initialization failed, state has been reset for retry');
       throw error;
     }
   }
@@ -180,35 +179,58 @@ export class RedLocker {
   private async performInitialization(): Promise<void> {
 
     try {
+      // Validate Redis configuration
+      if (this.config.redisConfig) {
+        RedisFactory.validateConfig(this.config.redisConfig);
+      }
+
       // Try to get Redis instance from IOC container first
       try {
-        this.redis = IOCContainer.get('Redis', 'COMPONENT') as Redis;
-        logger.Debug('Using Redis instance from IOC container');
+        const existingRedis = IOCContainer.get('Redis', 'COMPONENT');
+        // If Redis instance exists in container, wrap it
+        if (existingRedis) {
+          // Check if it's already a RedisClientAdapter
+          if (existingRedis instanceof RedisClientAdapter) {
+            this.redisClient = existingRedis;
+          } else {
+            // Wrap raw Redis/Cluster instance (type assertion needed)
+            this.redisClient = new RedisClientAdapter(existingRedis as any);
+          }
+          logger.Debug('Using Redis instance from IOC container');
+        }
       } catch {
-        // Create new Redis connection if not available in container
-        this.redis = new Redis({
-          host: this.config.redisConfig.host,
-          port: this.config.redisConfig.port,
-          password: this.config.redisConfig.password || undefined,
-          db: this.config.redisConfig.db || 0,
-          keyPrefix: this.config.redisConfig.keyPrefix,
-          maxRetriesPerRequest: 3
-        });
+        // IOC container doesn't have Redis, create new connection
+      }
+
+      // Create new Redis connection if not available in container
+      if (!this.redisClient && this.config.redisConfig) {
+        this.redisClient = RedisFactory.createClient(this.config.redisConfig);
         logger.Debug('Created new Redis connection for RedLocker');
       }
 
-      if (!this.redis) {
-        throw new Error('Failed to initialize Redis connection');
+      if (!this.redisClient) {
+        throw new Error('Failed to initialize Redis connection: no configuration provided');
       }
 
+      // Get underlying client for Redlock
+      const underlyingClient = this.redisClient.getClient();
+
+      // Merge default settings with user configuration
+      // Extract Settings properties from config (which extends Partial<Settings>)
+      const userSettings: any = this.config;
+      const redlockSettings: Partial<Settings> = {
+        ...defaultRedlockSettings,
+        ...(userSettings.driftFactor !== undefined && { driftFactor: userSettings.driftFactor }),
+        ...(userSettings.retryCount !== undefined && { retryCount: userSettings.retryCount }),
+        ...(userSettings.retryDelay !== undefined && { retryDelay: userSettings.retryDelay }),
+        ...(userSettings.retryJitter !== undefined && { retryJitter: userSettings.retryJitter }),
+        ...(userSettings.automaticExtensionThreshold !== undefined && { 
+          automaticExtensionThreshold: userSettings.automaticExtensionThreshold 
+        })
+      };
+
       // Initialize Redlock with the Redis instance
-      this.redlock = new Redlock([this.redis], {
-        driftFactor: this.config.driftFactor,
-        retryCount: this.config.retryCount,
-        retryDelay: this.config.retryDelay,
-        retryJitter: this.config.retryJitter,
-        automaticExtensionThreshold: this.config.automaticExtensionThreshold
-      });
+      this.redlock = new Redlock([underlyingClient], redlockSettings);
 
       // Set up error handlers
       this.redlock.on('clientError', (err: Error) => {
@@ -323,7 +345,7 @@ export class RedLocker {
    * @returns true if initialized, false otherwise
    */
   isReady(): boolean {
-    return this.isInitialized && !!this.redlock && !!this.redis;
+    return this.isInitialized && !!this.redlock && !!this.redisClient;
   }
 
   /**
@@ -356,12 +378,12 @@ export class RedLocker {
    */
   async close(): Promise<void> {
     try {
-      if (this.redis && this.redis.status === 'ready') {
-        await this.redis.quit();
+      if (this.redisClient && this.redisClient.status === 'ready') {
+        await this.redisClient.quit();
         logger.Debug('Redis connection closed');
       }
       
-      this.redis = null;
+      this.redisClient = null;
       this.redlock = null;
       this.isInitialized = false;
     } catch (error) {
@@ -396,7 +418,7 @@ export class RedLocker {
     try {
       await this.initialize();
       
-      const redisStatus = this.redis?.status || 'unknown';
+      const redisStatus = this.redisClient?.status || 'unknown';
       const isReady = this.isReady();
       
       return {
@@ -404,6 +426,7 @@ export class RedLocker {
         details: {
           initialized: this.isInitialized,
           redisStatus,
+          redisMode: this.config.redisConfig?.mode || 'unknown',
           redlockReady: !!this.redlock,
           containerRegistered: this.getContainerInfo().registered
         }

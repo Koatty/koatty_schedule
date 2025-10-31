@@ -95,14 +95,23 @@ export function redLockerDescriptor(
     
     try {
       while (remainingTime > 0 && extensionCount < maxExtensions) {
+        // 创建可取消的超时 Promise
+        const timeoutHandler = timeoutPromise(remainingTime);
+        
         try {
           // 执行业务方法，与超时竞争
           const result = await Promise.race([
             value.apply(self, props),
-            timeoutPromise(remainingTime)
+            timeoutHandler
           ]);
-          return result; // 成功执行，返回业务结果
+          
+          // 成功执行，取消超时定时器防止内存泄漏
+          timeoutHandler.cancel();
+          return result;
         } catch (error) {
+          // 无论什么错误，都要取消超时定时器
+          timeoutHandler.cancel();
+          
           // 处理超时错误，尝试续期锁
           if (error instanceof Error && error.message === 'TIME_OUT_ERROR') {
             extensionCount++;
