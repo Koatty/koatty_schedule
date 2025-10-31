@@ -23,16 +23,13 @@ export async function initSchedule(options: any, app: Koatty): Promise<void> {
     logger.Warn(`Schedule initialization skipped: Koatty app not available or not initialized`);
     return;
   }
-  
-  app.once("appReady", async function () {
-    try {
-      await injectSchedule(options);
-      logger.Info('Schedule system initialized successfully');
-    } catch (error) {
-      logger.Error('Failed to initialize Schedule system:', error);
-      throw error;
-    }
-  });
+  try {
+    await injectSchedule(options);
+    logger.Info('Schedule system initialized successfully');
+  } catch (error) {
+    logger.Error('Failed to initialize Schedule system:', error);
+    throw error;
+  }
 }
 
 /**

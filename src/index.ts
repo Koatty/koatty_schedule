@@ -62,9 +62,10 @@ const defaultOptions: ScheduledOptions = {
 export async function KoattyScheduled(options: ScheduledOptions, app: Koatty) {
   options = { ...defaultOptions, ...options };
   
-  // 初始化RedLock（appReady时触发，确保所有依赖就绪）
-  await initRedLock(options, app);
-  
-  // 初始化调度任务系统（appReady时触发，确保所有组件都已初始化）
-  await initSchedule(options, app);
+  app.once("appReady", async function () {
+    // 初始化RedLock
+    await initRedLock(options, app);
+    // 初始化调度任务系统
+    await initSchedule(options, app);
+  });
 }

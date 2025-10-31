@@ -29,21 +29,18 @@ export async function initRedLock(options: RedLockOptions, app: Koatty): Promise
     logger.Warn(`RedLock initialization skipped: Koatty app not available or not initialized`);
     return;
   }
-  
-  app.once("appReady", async function () {
-    try {
-      if (Helper.isEmpty(options)) {
-        throw Error(`Missing RedLock configuration. Please write a configuration item with the key name 'RedLock' in the db.ts file.`);
-      }
-      // 获取RedLocker实例，在首次使用时自动初始化
-      const redLocker = RedLocker.getInstance(options);
-      await redLocker.initialize();
-      logger.Info('RedLock initialized successfully');
-    } catch (error) {
-      logger.Error('Failed to initialize RedLock:', error);
-      throw error;
+  try {
+    if (Helper.isEmpty(options)) {
+      throw Error(`Missing RedLock configuration. Please write a configuration item with the key name 'RedLock' in the db.ts file.`);
     }
-  });
+    // 获取RedLocker实例，在首次使用时自动初始化
+    const redLocker = RedLocker.getInstance(options);
+    await redLocker.initialize();
+    logger.Info('RedLock initialized successfully');
+  } catch (error) {
+    logger.Error('Failed to initialize RedLock:', error);
+    throw error;
+  }
 }
 
 /**
