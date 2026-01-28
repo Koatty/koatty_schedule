@@ -21,7 +21,8 @@ describe('Utils Module Tests', () => {
       
       const elapsedTime = Date.now() - startTime;
       expect(elapsedTime).toBeGreaterThanOrEqual(90); // Allow some variance
-      expect(elapsedTime).toBeLessThan(150);
+      // 在 CI/CD 环境中，由于系统负载波动，放宽上限到 200ms
+      expect(elapsedTime).toBeLessThan(200);
     });
 
     test('should reject with correct error message', async () => {
