@@ -1,6 +1,6 @@
 {
   "name": "koatty_schedule",
-  "version": "3.3.4",
+  "version": "3.3.5",
   "description": "Schedule for koatty.",
   "scripts": {
     "build": "npm run build:js && npm run build:dts && npm run build:doc && npm run build:cp",
