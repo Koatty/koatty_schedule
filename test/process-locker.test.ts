@@ -33,6 +33,7 @@ describe("process/locker.ts 测试覆盖", () => {
 
     // Mock RedLocker instance
     mockRedLockerInstance = {
+      initialize: jest.fn().mockResolvedValue(undefined),
       acquire: jest.fn().mockResolvedValue({
         extend: jest.fn().mockResolvedValue({}),
         release: jest.fn().mockResolvedValue(undefined)
@@ -71,7 +72,8 @@ describe("process/locker.ts 测试覆盖", () => {
 
       await initRedLock(options, mockApp);
 
-      expect(mockApp.once).toHaveBeenCalledWith("appReady", expect.any(Function));
+      expect(mockRedLocker.getInstance).toHaveBeenCalledWith(options);
+      expect(mockRedLockerInstance.initialize).toHaveBeenCalled();
     });
 
     it("应该在app不可用时跳过初始化", async () => {
@@ -86,19 +88,9 @@ describe("process/locker.ts 测试覆盖", () => {
     });
 
     it("应该在缺少配置时抛出错误", async () => {
-      let appReadyCallback: ((...args: any) => any) | undefined;
-      mockApp.once.mockImplementation((event: string, callback: (...args: any) => any) => {
-        if (event === "appReady") {
-          appReadyCallback = callback;
-        }
-      });
-
       mockHelper.isEmpty.mockReturnValue(true); // 配置为空
 
-      await initRedLock({} as any, mockApp);
-
-      // 模拟appReady事件触发
-      await expect(appReadyCallback!()).rejects.toThrow(
+      await expect(initRedLock({} as any, mockApp)).rejects.toThrow(
         "Missing RedLock configuration"
       );
     });
@@ -108,21 +100,16 @@ describe("process/locker.ts 测试覆盖", () => {
         redisConfig: { host: "localhost", port: 6379 },
         lockTimeOut: 10000
       };
-      
-      let appReadyCallback: ((...args: any) => any) | undefined;
-      mockApp.once.mockImplementation((event: string, callback: (...args: any) => any) => {
-        if (event === "appReady") {
-          appReadyCallback = callback;
-        }
-      });
 
       mockRedLocker.getInstance.mockImplementation(() => {
         throw new Error("Init failed");
       });
 
-      await initRedLock(options, mockApp);
-
-      await expect(appReadyCallback!()).rejects.toThrow("Init failed");
+      await expect(initRedLock(options, mockApp)).rejects.toThrow("Init failed");
+      expect(mockLogger.Error).toHaveBeenCalledWith(
+        "Failed to initialize RedLock:",
+        expect.any(Error)
+      );
     });
   });
 

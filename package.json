@@ -1,6 +1,6 @@
 {
   "name": "koatty_schedule",
-  "version": "3.3.3",
+  "version": "3.3.4",
   "description": "Schedule for koatty.",
   "scripts": {
     "build": "npm run build:js && npm run build:dts && npm run build:doc && npm run build:cp",
@@ -12,13 +12,8 @@
     "lock": "npm i --package-lock-only",
     "prepublishOnly": "npm test && npm run build && git push --follow-tags origin master",
     "prerelease": "npm test && npm run build",
-    "release:minor": "npm run release -- --release-as minor",
-    "release:major": "npm run release -- --release-as major",
-    "release": "standard-version",
-    "release:pre": "npm run release -- --prerelease",
     "test": "npm run eslint && jest --passWithNoTests",
-    "test:cov": "jest --collectCoverage --detectOpenHandles",
-    "version": "conventional-changelog -p angular -i CHANGELOG.md -s"
+    "test:cov": "jest --collectCoverage --detectOpenHandles"
   },
   "main": "./dist/index.js",
   "exports": {
@@ -89,18 +84,18 @@
   },
   "dependencies": {
     "@sesamecare-oss/redlock": "^1.4.0",
-    "cron": "^4.3.3",
-    "ioredis": "^5.8.2",
-    "koatty_container": "^1.x.x",
-    "koatty_core": "2.0.8-0",
-    "koatty_lib": "^1.x.x",
-    "koatty_logger": "^2.x.x",
-    "koatty_store": "^1.x.x"
+    "cron": "^4.4.0",
+    "ioredis": "^5.9.2",
+    "koatty_container": "workspace:*",
+    "koatty_core": "workspace:*",
+    "koatty_lib": "workspace:*",
+    "koatty_logger": "workspace:*",
+    "koatty_store": "workspace:*"
   },
   "peerDependencies": {
-    "koatty_container": "^1.x.x",
-    "koatty_core": "^1.x.x",
-    "koatty_lib": "^1.x.x",
-    "koatty_logger": "^2.x.x"
+    "koatty_container": "workspace:*",
+    "koatty_core": "workspace:*",
+    "koatty_lib": "workspace:*",
+    "koatty_logger": "workspace:*"
   }
 }
