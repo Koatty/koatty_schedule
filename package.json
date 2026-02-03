@@ -1,6 +1,6 @@
 {
   "name": "koatty_schedule",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Schedule for koatty.",
   "scripts": {
     "build": "npm run build:js && npm run build:dts && npm run build:doc && npm run build:cp",
@@ -10,7 +10,7 @@
     "build:dts": "bash ../../scripts/build-dts.sh",
     "eslint": "eslint --ext .ts,.js ./",
     "lock": "npm i --package-lock-only",
-    "prepublishOnly": "npm test && npm run build && git push --follow-tags origin master",
+    "prepublishOnly": "npm test && npm run build",
     "prerelease": "npm test && npm run build",
     "test": "npm run eslint && jest --passWithNoTests",
     "test:cov": "jest --collectCoverage --detectOpenHandles"
@@ -93,9 +93,9 @@
     "koatty_store": "workspace:*"
   },
   "peerDependencies": {
-    "koatty_container": "^2.0.0",
-    "koatty_core": "^2.1.0",
+    "koatty_container": "^2.0.1",
+    "koatty_core": "^2.1.1",
     "koatty_lib": "^1.4.5",
-    "koatty_logger": "^2.4.0"
+    "koatty_logger": "^2.4.1"
   }
 }
