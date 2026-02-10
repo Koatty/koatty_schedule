@@ -17,13 +17,14 @@ import { RedisMode } from "./locker/interface";
 export { RedLock, Scheduled };
 
 // Export types and interfaces
-export { RedLocker, RedLockOptions } from "./locker/redlock";
-export { 
+export { RedLocker } from "./locker/redlock";
+export type { RedLockOptions } from "./locker/redlock";
+export { RedisMode } from "./locker/interface";
+export type { 
   IDistributedLock, 
   IRedisClient, 
   ILockOptions,
   RedisConfig,
-  RedisMode,
   RedisStandaloneConfig,
   RedisSentinelConfig,
   RedisClusterConfig
