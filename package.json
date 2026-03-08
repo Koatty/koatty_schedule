@@ -70,7 +70,7 @@
   "dependencies": {
     "@sesamecare-oss/redlock": "^1.4.0",
     "cron": "^4.4.0",
-    "ioredis": "^5.9.2",
+    "ioredis": "^5.10.0",
     "koatty_container": "workspace:*",
     "koatty_core": "workspace:*",
     "koatty_lib": "workspace:*",
