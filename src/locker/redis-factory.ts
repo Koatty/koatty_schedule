@@ -101,7 +101,7 @@ export class RedisFactory {
         return this.createClusterClient(config as RedisClusterConfig);
       
       default:
-        throw new Error(`不支持的 Redis 模式: ${mode} (Unsupported Redis mode: ${mode})`);
+        throw new Error(`Unsupported Redis mode: ${mode}`);
     }
   }
 
@@ -228,7 +228,7 @@ export class RedisFactory {
    */
   static validateConfig(config: RedisConfig): void {
     if (!config) {
-      throw new Error('Redis 配置不能为空 (Redis configuration cannot be empty)');
+      throw new Error('Redis configuration cannot be empty');
     }
 
     const mode = config.mode || RedisMode.STANDALONE;
@@ -247,31 +247,31 @@ export class RedisFactory {
         break;
       
       default:
-        throw new Error(`不支持的 Redis 模式: ${mode} (Unsupported Redis mode: ${mode})`);
+        throw new Error(`Unsupported Redis mode: ${mode}`);
     }
   }
 
   private static validateStandaloneConfig(config: RedisStandaloneConfig): void {
     if (!config.host) {
-      throw new Error('单机模式需要 host 配置 (Standalone mode requires host configuration)');
+      throw new Error('Standalone mode requires host configuration');
     }
     if (!config.port) {
-      throw new Error('单机模式需要 port 配置 (Standalone mode requires port configuration)');
+      throw new Error('Standalone mode requires port configuration');
     }
   }
 
   private static validateSentinelConfig(config: RedisSentinelConfig): void {
     if (!config.sentinels || config.sentinels.length === 0) {
-      throw new Error('哨兵模式需要至少一个哨兵节点配置 (Sentinel mode requires at least one sentinel node)');
+      throw new Error('Sentinel mode requires at least one sentinel node');
     }
     if (!config.name) {
-      throw new Error('哨兵模式需要 master name 配置 (Sentinel mode requires master name)');
+      throw new Error('Sentinel mode requires master name');
     }
   }
 
   private static validateClusterConfig(config: RedisClusterConfig): void {
     if (!config.nodes || config.nodes.length === 0) {
-      throw new Error('集群模式需要至少一个节点配置 (Cluster mode requires at least one node)');
+      throw new Error('Cluster mode requires at least one node');
     }
   }
 }

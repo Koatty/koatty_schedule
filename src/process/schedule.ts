@@ -46,69 +46,61 @@ export async function initSchedule(options: any, app: Koatty): Promise<void> {
 export async function injectSchedule(options: any): Promise<void> {
   try {
     logger.Debug('Starting batch schedule injection...');
-
+    let totalScheduled = 0;
     const componentList = IOCContainer.listClass("COMPONENT");
     for (const component of componentList) {
       const classMetadata = IOCContainer.getClassMetadata(COMPONENT_SCHEDULED, DecoratorType.SCHEDULED,
         component.target);
-      if (!classMetadata) {
+      if (!classMetadata || !Array.isArray(classMetadata)) {
         continue;
       }
-      let scheduledCount = 0;
 
-      for (const [className, metadata] of classMetadata) {
+      const instance: any = IOCContainer.get(component.id);
+      if (!instance) {
+        continue;
+      }
+
+      for (const scheduleData of classMetadata) {
         try {
-          const instance: any = IOCContainer.get(className);
-          if (!instance) {
+          if (!scheduleData || !scheduleData.method) {
             continue;
           }
 
-          // 查找所有调度方法的元数据
-          for (const [key, value] of Object.entries(metadata)) {
-            if (key.startsWith('SCHEDULED')) {
-              const scheduleData = value as {
-                method: string;
-                cron: string;
-                timezone?: string;
-              };
-
-              const targetMethod = instance[scheduleData.method];
-              if (!Helper.isFunction(targetMethod)) {
-                logger.Warn(`Schedule injection skipped: method ${scheduleData.method} is not a function in ${className}`);
-                continue;
-              }
-
-              const taskName = `${className}_${scheduleData.method}`;
-              const tz = getEffectiveTimezone(options, scheduleData.timezone);
-
-              new CronJob(
-                scheduleData.cron,
-                () => {
-                  logger.Debug(`The schedule job ${taskName} started.`);
-                  Promise.resolve(targetMethod.call(instance))
-                    .then(() => {
-                      logger.Debug(`The schedule job ${taskName} completed.`);
-                    })
-                    .catch((error) => {
-                      logger.Error(`The schedule job ${taskName} failed:`, error);
-                    });
-                },
-                null, // onComplete
-                true, // start
-                tz // timeZone
-              );
-
-              scheduledCount++;
-              logger.Debug(`Schedule job ${taskName} registered with cron: ${scheduleData.cron}`);
-            }
+          const targetMethod = instance[scheduleData.method];
+          if (!Helper.isFunction(targetMethod)) {
+            logger.Warn(`Schedule injection skipped: method ${scheduleData.method} is not a function in ${component.id}`);
+            continue;
           }
+
+          const taskName = `${component.id}_${scheduleData.method}`;
+          const tz = getEffectiveTimezone(options, scheduleData.timezone);
+
+          new CronJob(
+            scheduleData.cron,
+            () => {
+              logger.Debug(`The schedule job ${taskName} started.`);
+              Promise.resolve(targetMethod.call(instance))
+                .then(() => {
+                  logger.Debug(`The schedule job ${taskName} completed.`);
+                })
+                .catch((error) => {
+                  logger.Error(`The schedule job ${taskName} failed:`, error);
+                });
+            },
+            null,
+            true,
+            tz
+          );
+
+          totalScheduled++;
+          logger.Debug(`Schedule job ${taskName} registered with cron: ${scheduleData.cron}`);
         } catch (error) {
-          logger.Error(`Failed to process class ${className}:`, error);
+          logger.Error(`Failed to process schedule for ${component.id}:`, error);
         }
       }
-
-      logger.Info(`Batch schedule injection completed. ${scheduledCount} jobs registered.`);
     }
+
+    logger.Info(`Batch schedule injection completed. ${totalScheduled} jobs registered.`);
   } catch (error) {
     logger.Error('Failed to inject schedules:', error);
   }

@@ -57,14 +57,14 @@ export enum DecoratorType {
  */
 export function validateCronExpression(cron: string): void {
   if (!cron || typeof cron !== 'string') {
-    throw new Error('Cron 表达式必须是非空字符串 (Cron expression must be a non-empty string)');
+    throw new Error('Cron expression must be a non-empty string');
   }
 
   const cronParts = cron.trim().split(/\s+/);
   
   // Cron expressions should have 5 or 6 parts (with or without seconds)
   if (cronParts.length < 5 || cronParts.length > 6) {
-    throw new Error(`Cron 表达式格式无效。期望 5 或 6 部分，实际得到 ${cronParts.length} 部分 (Invalid cron format. Expected 5 or 6 parts, got ${cronParts.length})`);
+    throw new Error(`Invalid cron format. Expected 5 or 6 parts, got ${cronParts.length}`);
   }
 
   // Determine if this is a 6-part (with seconds) or 5-part expression
@@ -138,7 +138,7 @@ function validateCronField(
     const stepValue = parseInt(step);
     
     if (isNaN(stepValue) || stepValue <= 0) {
-      throw new Error(`${fieldNameCN}字段的步长值无效: ${step} (Invalid step value for ${fieldName}: ${step})`);
+      throw new Error(`Invalid step value for ${fieldName}: ${step}`);
     }
     
     if (range !== '*') {
@@ -154,15 +154,15 @@ function validateCronField(
     const endValue = parseInt(end);
     
     if (isNaN(startValue) || startValue < min || startValue > max) {
-      throw new Error(`${fieldNameCN}字段的范围起始值无效: ${start}，必须在 ${min}-${max} 之间 (Invalid range start for ${fieldName}: ${start}, must be between ${min}-${max})`);
+      throw new Error(`Invalid range start for ${fieldName}: ${start}, must be between ${min}-${max}`);
     }
     
     if (isNaN(endValue) || endValue < min || endValue > max) {
-      throw new Error(`${fieldNameCN}字段的范围结束值无效: ${end}，必须在 ${min}-${max} 之间 (Invalid range end for ${fieldName}: ${end}, must be between ${min}-${max})`);
+      throw new Error(`Invalid range end for ${fieldName}: ${end}, must be between ${min}-${max}`);
     }
     
     if (startValue > endValue) {
-      throw new Error(`${fieldNameCN}字段的范围无效: ${start}-${end}，起始值不能大于结束值 (Invalid range for ${fieldName}: ${start}-${end}, start cannot be greater than end)`);
+      throw new Error(`Invalid range for ${fieldName}: ${start}-${end}, start cannot be greater than end`);
     }
     return;
   }
@@ -179,7 +179,7 @@ function validateCronField(
   // Single numeric value
   const numValue = parseInt(field);
   if (isNaN(numValue) || numValue < min || numValue > max) {
-    throw new Error(`${fieldNameCN}字段的值无效: ${field}，必须在 ${min}-${max} 之间 (Invalid ${fieldName} value: ${field}, must be between ${min}-${max})`);
+    throw new Error(`Invalid ${fieldName} value: ${field}, must be between ${min}-${max}`);
   }
 }
 

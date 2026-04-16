@@ -80,11 +80,9 @@ export class RedLocker implements IDistributedLock {
    */
   private registerInContainer(): void {
     try {
-      // Register as a singleton component in IOC container
-      IOCContainer.reg('RedLocker', this, {
-        type: 'COMPONENT',
-        args: []
-      });
+      const RedLockerClass = this.constructor as Function;
+      IOCContainer.saveClass('COMPONENT', RedLockerClass, 'RedLocker');
+      IOCContainer.setExistingInstance(RedLockerClass, this);
       logger.Debug('RedLocker registered in IOC container');
     } catch (_error) {
       logger.Warn('Failed to register RedLocker in IOC container:', _error);

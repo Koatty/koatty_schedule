@@ -39,50 +39,109 @@ import { redLockerDescriptor, generateLockName } from "../process/locker";
  * }
  * ```
  */
-export function RedLock(lockName?: string, options?: RedLockMethodOptions): MethodDecorator {
-  return (target: unknown, propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
-    const methodName = propertyKey.toString();
+export function RedLock(lockName?: string, options?: RedLockMethodOptions) {
+  return IOCContainer.createDecorator(({ target, methodName, descriptor, method, context }) => {
+    if (context) {
+      // TC39 path
+      if (!methodName || typeof methodName !== 'string') {
+        throw Error("Method name is required for @RedLock decorator");
+      }
 
-    // 验证装饰器使用的类型（从原型对象获取类构造函数）
-    const targetClass = (target as any).constructor;
-    const componentType = IOCContainer.getType(targetClass);
-    if (componentType !== "SERVICE" && componentType !== "COMPONENT") {
-      throw Error("@RedLock decorator can only be used on SERVICE or COMPONENT classes.");
+      if (options) {
+        validateRedLockMethodOptions(options);
+      }
+
+      context.addInitializer?.(function (this: any) {
+        const targetClass = this.constructor;
+        const componentType = IOCContainer.getType(targetClass);
+        if (componentType !== "SERVICE" && componentType !== "COMPONENT") {
+          throw Error("@RedLock decorator can only be used on SERVICE or COMPONENT classes.");
+        }
+        IOCContainer.saveClass("COMPONENT", targetClass, targetClass.name);
+      });
+
+      const originalMethod = method!;
+      return async function (this: any, ...props: any[]): Promise<unknown> {
+        try {
+          const { RedLocker } = await import("../locker/redlock");
+          const { getEffectiveRedLockOptions } = await import("../config/config");
+          const { timeoutPromise } = await import("../utils/lib");
+          const { Lock } = await import("@sesamecare-oss/redlock");
+
+          const resolvedLockName = lockName || generateLockName(lockName, methodName, Object.getPrototypeOf(this));
+
+          const redlock = RedLocker.getInstance();
+          const lockOptions = getEffectiveRedLockOptions(options);
+          const lockTime = lockOptions.lockTimeOut || 10000;
+          if (lockTime <= 200) {
+            throw new Error("Lock timeout must be greater than 200ms to allow for proper execution");
+          }
+
+          const lock = await redlock.acquire([methodName, resolvedLockName], lockTime);
+          const timeout = lockTime - 200;
+
+          try {
+            const result = await Promise.race([
+              originalMethod.apply(this, props),
+              timeoutPromise(timeout)
+            ]);
+            return result;
+          } catch (error) {
+            throw error;
+          } finally {
+            try {
+              await lock.release();
+            } catch (releaseError) {
+              // Ignore release errors
+            }
+          }
+        } catch (error) {
+          throw error;
+        }
+      };
+    } else {
+      // Legacy path
+      // 验证装饰器使用的类型（从原型对象获取类构造函数）
+      const targetClass = (target as any).constructor;
+      const componentType = IOCContainer.getType(targetClass);
+      if (componentType !== "SERVICE" && componentType !== "COMPONENT") {
+        throw Error("@RedLock decorator can only be used on SERVICE or COMPONENT classes.");
+      }
+
+      // 验证方法名
+      if (!methodName || typeof methodName !== 'string') {
+        throw Error("Method name is required for @RedLock decorator");
+      }
+
+      // 验证方法描述符
+      if (!descriptor || typeof descriptor.value !== 'function') {
+        throw Error("@RedLock decorator can only be applied to methods");
+      }
+
+      // 生成锁名称：用户指定的 > 基于类名和方法名生成
+      const finalLockName = lockName || generateLockName(lockName, methodName, target);
+
+      // 验证选项
+      if (options) {
+        validateRedLockMethodOptions(options);
+      }
+
+      // 保存类到IOC容器
+      IOCContainer.saveClass("COMPONENT", targetClass, targetClass.name);
+
+      try {
+        // 直接在装饰器中包装方法，而不是延迟处理
+        const enhancedDescriptor = redLockerDescriptor(
+          descriptor,
+          finalLockName,
+          methodName,
+          options
+        );
+
+        return enhancedDescriptor;
+      } catch (error) {
+        throw new Error(`Failed to apply RedLock to ${methodName}: ${(error as Error).message}`);
+      }
     }
-
-    // 验证方法名
-    if (!methodName || typeof methodName !== 'string') {
-      throw Error("Method name is required for @RedLock decorator");
-    }
-
-    // 验证方法描述符
-    if (!descriptor || typeof descriptor.value !== 'function') {
-      throw Error("@RedLock decorator can only be applied to methods");
-    }
-
-    // 生成锁名称：用户指定的 > 基于类名和方法名生成
-    const finalLockName = lockName || generateLockName(lockName, methodName, target);
-
-    // 验证选项
-    if (options) {
-      validateRedLockMethodOptions(options);
-    }
-
-    // 保存类到IOC容器
-    IOCContainer.saveClass("COMPONENT", targetClass, targetClass.name);
-
-    try {
-      // 直接在装饰器中包装方法，而不是延迟处理
-      const enhancedDescriptor = redLockerDescriptor(
-        descriptor,
-        finalLockName,
-        methodName,
-        options
-      );
-
-      return enhancedDescriptor;
-    } catch (error) {
-      throw new Error(`Failed to apply RedLock to ${methodName}: ${(error as Error).message}`);
-    }
-  };
+  }, 'method');
 }

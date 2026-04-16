@@ -30,7 +30,7 @@ import { IOCContainer } from "koatty_container";
  * @returns {MethodDecorator}
  * @throws {Error} When cron expression is invalid or decorator is used on wrong class type
  */
-export function Scheduled(cron: string, timezone = 'Asia/Beijing'): MethodDecorator {
+export function Scheduled(cron: string, timezone = 'Asia/Beijing') {
   // 参数验证
   if (Helper.isEmpty(cron)) {
     throw Error("Cron expression is required and cannot be empty");
@@ -48,31 +48,58 @@ export function Scheduled(cron: string, timezone = 'Asia/Beijing'): MethodDecora
     throw Error("Timezone must be a string");
   }
 
-  return (target: unknown, propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
-    // 验证装饰器使用的类型（从原型对象获取类构造函数）
-    const targetClass = (target as any).constructor;
-    const componentType = IOCContainer.getType(targetClass);
-    if (componentType !== "SERVICE" && componentType !== "COMPONENT") {
-      throw Error("@Scheduled decorator can only be used on SERVICE or COMPONENT classes.");
-    }
+  return IOCContainer.createDecorator(({ target, methodName, descriptor, method, context }) => {
+    if (context) {
+      // TC39 path
+      context.addInitializer?.(function (this: any) {
+        const targetClass = this.constructor;
+        const componentType = IOCContainer.getType(targetClass);
+        if (componentType !== "SERVICE" && componentType !== "COMPONENT") {
+          throw Error("@Scheduled decorator can only be used on SERVICE or COMPONENT classes.");
+        }
 
-    // 验证方法名
-    const methodName = propertyKey.toString();
-    if (!methodName || typeof methodName !== 'string') {
-      throw Error("Method name is required for @Scheduled decorator");
-    }
+        // 验证方法名
+        if (!methodName || typeof methodName !== 'string') {
+          throw Error("Method name is required for @Scheduled decorator");
+        }
 
-    // 验证方法描述符
-    if (!descriptor || typeof descriptor.value !== 'function') {
-      throw Error("@Scheduled decorator can only be applied to methods");
+        // 保存类到IOC容器
+        IOCContainer.saveClass("COMPONENT", targetClass, targetClass.name);
+        // 保存调度元数据到 IOC 容器
+        IOCContainer.attachClassMetadata(COMPONENT_SCHEDULED, DecoratorType.SCHEDULED, {
+          method: methodName,
+          cron,
+          timezone
+        }, this, methodName);
+      });
+
+      return method;
+    } else {
+      // Legacy path
+      // 验证装饰器使用的类型（从原型对象获取类构造函数）
+      const targetClass = (target as any).constructor;
+      const componentType = IOCContainer.getType(targetClass);
+      if (componentType !== "SERVICE" && componentType !== "COMPONENT") {
+        throw Error("@Scheduled decorator can only be used on SERVICE or COMPONENT classes.");
+      }
+
+      // 验证方法名
+      if (!methodName || typeof methodName !== 'string') {
+        throw Error("Method name is required for @Scheduled decorator");
+      }
+
+      // 验证方法描述符
+      if (!descriptor || typeof descriptor.value !== 'function') {
+        throw Error("@Scheduled decorator can only be applied to methods");
+      }
+      // 保存类到IOC容器
+      IOCContainer.saveClass("COMPONENT", targetClass, targetClass.name);
+      // 保存调度元数据到 IOC 容器
+      IOCContainer.attachClassMetadata(COMPONENT_SCHEDULED, DecoratorType.SCHEDULED, {
+        method: methodName,
+        cron,
+        timezone  // 保存确定的时区值
+      }, target as object, methodName);
     }
-    // 保存类到IOC容器
-    IOCContainer.saveClass("COMPONENT", targetClass, targetClass.name);
-    // 保存调度元数据到 IOC 容器
-    IOCContainer.attachClassMetadata(COMPONENT_SCHEDULED, DecoratorType.SCHEDULED, {
-      method: methodName,
-      cron,
-      timezone  // 保存确定的时区值
-    }, target as object, methodName);
-  };
+  }, 'method');
 }

@@ -1,19 +1,52 @@
+/**
+ * Test suite for process/schedule.ts
+ * Tests the injectSchedule function with correct Array-based metadata structure.
+ */
+
+// Mock依赖 - MUST be before imports (Jest hoists these)
+jest.mock("koatty_container", () => ({
+  IOCContainer: {
+    listClass: jest.fn(),
+    getClassMetadata: jest.fn(),
+    get: jest.fn(),
+    saveClass: jest.fn(),
+    attachClassMetadata: jest.fn(),
+    setExistingInstance: jest.fn(),
+    getType: jest.fn(),
+    reg: jest.fn(),
+  },
+}));
+jest.mock("koatty_lib", () => ({
+  __esModule: true,
+  Helper: {
+    isFunction: jest.fn().mockReturnValue(true),
+    isEmpty: jest.fn().mockReturnValue(false),
+  },
+}));
+jest.mock("koatty_logger", () => ({
+  DefaultLogger: {
+    Debug: jest.fn(),
+    Info: jest.fn(),
+    Warn: jest.fn(),
+    Error: jest.fn(),
+  },
+}));
+jest.mock("cron", () => ({
+  CronJob: jest.fn().mockImplementation(() => ({})),
+}));
+jest.mock("../src/config/config", () => ({
+  ...jest.requireActual("../src/config/config"),
+  getEffectiveTimezone: jest.fn(),
+  COMPONENT_SCHEDULED: "COMPONENT_SCHEDULED",
+  DecoratorType: { SCHEDULED: "SCHEDULED" },
+}));
+
 import { IOCContainer } from "koatty_container";
 import { Helper } from "koatty_lib";
 import { DefaultLogger } from "koatty_logger";
 import { CronJob } from "cron";
 import { injectSchedule } from "../src/process/schedule";
 import { COMPONENT_SCHEDULED, DecoratorType, getEffectiveTimezone } from "../src/config/config";
-
-// Mock依赖
-jest.mock("koatty_container");
-jest.mock("koatty_lib");
-jest.mock("koatty_logger");
-jest.mock("cron");
-jest.mock("../src/config/config", () => ({
-  ...jest.requireActual("../src/config/config"),
-  getEffectiveTimezone: jest.fn()
-}));
 
 const mockIOCContainer = IOCContainer as jest.Mocked<typeof IOCContainer>;
 const mockHelper = Helper as jest.Mocked<typeof Helper>;
@@ -24,25 +57,23 @@ const mockGetEffectiveTimezone = getEffectiveTimezone as jest.MockedFunction<typ
 describe("process/schedule.ts 测试覆盖", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockHelper.isFunction.mockReturnValue(true);
+    (mockHelper.isFunction as jest.Mock).mockReturnValue(true);
     mockGetEffectiveTimezone.mockReturnValue("Asia/Shanghai");
   });
 
   describe("injectSchedule函数", () => {
     it("应该成功注入调度任务", async () => {
       const mockComponentList = [
-        { id: "TaskService", target: class TaskService {} }
+        { id: "COMPONENT:TaskService", target: class TaskService {} }
       ];
 
-      const mockMetadata = new Map([
-        ["TaskService", {
-          "SCHEDULED_dailyTask": {
-            method: "dailyTask",
-            cron: "0 0 2 * * *",
-            timezone: "UTC"
-          }
-        }]
-      ]);
+      const mockMetadata = [
+        {
+          method: "dailyTask",
+          cron: "0 0 2 * * *",
+          timezone: "UTC"
+        }
+      ];
 
       const mockInstance = {
         dailyTask: jest.fn().mockResolvedValue("completed")
@@ -52,7 +83,7 @@ describe("process/schedule.ts 测试覆盖", () => {
       mockIOCContainer.getClassMetadata.mockReturnValue(mockMetadata);
       mockIOCContainer.get.mockReturnValue(mockInstance);
 
-      await injectSchedule({} as any, {} as any);
+      await injectSchedule({} as any);
 
       expect(mockIOCContainer.listClass).toHaveBeenCalledWith("COMPONENT");
       expect(mockIOCContainer.getClassMetadata).toHaveBeenCalledWith(
@@ -74,13 +105,13 @@ describe("process/schedule.ts 测试覆盖", () => {
 
     it("应该跳过没有元数据的组件", async () => {
       const mockComponentList = [
-        { id: "TaskService", target: class TaskService {} }
+        { id: "COMPONENT:TaskService", target: class TaskService {} }
       ];
 
       mockIOCContainer.listClass.mockReturnValue(mockComponentList);
       mockIOCContainer.getClassMetadata.mockReturnValue(null);
 
-      await injectSchedule({} as any, {} as any);
+      await injectSchedule({} as any);
 
       expect(mockLogger.Debug).toHaveBeenCalledWith(
         "Starting batch schedule injection..."
@@ -90,40 +121,36 @@ describe("process/schedule.ts 测试覆盖", () => {
 
     it("应该跳过没有实例的类", async () => {
       const mockComponentList = [
-        { id: "TaskService", target: class TaskService {} }
+        { id: "COMPONENT:TaskService", target: class TaskService {} }
       ];
 
-      const mockMetadata = new Map([
-        ["TaskService", {
-          "SCHEDULED_dailyTask": {
-            method: "dailyTask",
-            cron: "0 0 2 * * *"
-          }
-        }]
-      ]);
+      const mockMetadata = [
+        {
+          method: "dailyTask",
+          cron: "0 0 2 * * *"
+        }
+      ];
 
       mockIOCContainer.listClass.mockReturnValue(mockComponentList);
       mockIOCContainer.getClassMetadata.mockReturnValue(mockMetadata);
       mockIOCContainer.get.mockReturnValue(null);
 
-      await injectSchedule({} as any, {} as any);
+      await injectSchedule({} as any);
 
       expect(mockCronJob).not.toHaveBeenCalled();
     });
 
     it("应该跳过非函数方法", async () => {
       const mockComponentList = [
-        { id: "TaskService", target: class TaskService {} }
+        { id: "COMPONENT:TaskService", target: class TaskService {} }
       ];
 
-      const mockMetadata = new Map([
-        ["TaskService", {
-          "SCHEDULED_dailyTask": {
-            method: "dailyTask",
-            cron: "0 0 2 * * *"
-          }
-        }]
-      ]);
+      const mockMetadata = [
+        {
+          method: "dailyTask",
+          cron: "0 0 2 * * *"
+        }
+      ];
 
       const mockInstance = {
         dailyTask: "not a function"
@@ -132,29 +159,27 @@ describe("process/schedule.ts 测试覆盖", () => {
       mockIOCContainer.listClass.mockReturnValue(mockComponentList);
       mockIOCContainer.getClassMetadata.mockReturnValue(mockMetadata);
       mockIOCContainer.get.mockReturnValue(mockInstance);
-      mockHelper.isFunction.mockReturnValue(false);
+      (mockHelper.isFunction as jest.Mock).mockReturnValue(false);
 
-      await injectSchedule({} as any, {} as any);
+      await injectSchedule({} as any);
 
       expect(mockLogger.Warn).toHaveBeenCalledWith(
-        expect.stringContaining("Schedule injection skipped: method dailyTask is not a function in TaskService")
+        expect.stringContaining("Schedule injection skipped: method dailyTask is not a function in COMPONENT:TaskService")
       );
       expect(mockCronJob).not.toHaveBeenCalled();
     });
 
-    it("应该处理非SCHEDULED键", async () => {
+    it("应该跳过无效的scheduleData（缺少method字段）", async () => {
       const mockComponentList = [
-        { id: "TaskService", target: class TaskService {} }
+        { id: "COMPONENT:TaskService", target: class TaskService {} }
       ];
 
-      const mockMetadata = new Map([
-        ["TaskService", {
-          "OTHER_method": {
-            method: "otherMethod",
-            type: "other"
-          }
-        }]
-      ]);
+      const mockMetadata = [
+        {
+          cron: "0 0 * * * *"
+          // missing method field
+        }
+      ];
 
       const mockInstance = {
         otherMethod: jest.fn()
@@ -164,30 +189,28 @@ describe("process/schedule.ts 测试覆盖", () => {
       mockIOCContainer.getClassMetadata.mockReturnValue(mockMetadata);
       mockIOCContainer.get.mockReturnValue(mockInstance);
 
-      await injectSchedule({} as any, {} as any);
+      await injectSchedule({} as any);
 
       expect(mockCronJob).not.toHaveBeenCalled();
     });
 
     it("应该处理多个调度方法", async () => {
       const mockComponentList = [
-        { id: "TaskService", target: class TaskService {} }
+        { id: "COMPONENT:TaskService", target: class TaskService {} }
       ];
 
-      const mockMetadata = new Map([
-        ["TaskService", {
-          "SCHEDULED_dailyTask": {
-            method: "dailyTask",
-            cron: "0 0 2 * * *",
-            timezone: "UTC"
-          },
-          "SCHEDULED_hourlyTask": {
-            method: "hourlyTask",
-            cron: "0 0 * * * *",
-            timezone: "Asia/Shanghai"
-          }
-        }]
-      ]);
+      const mockMetadata = [
+        {
+          method: "dailyTask",
+          cron: "0 0 2 * * *",
+          timezone: "UTC"
+        },
+        {
+          method: "hourlyTask",
+          cron: "0 0 * * * *",
+          timezone: "Asia/Shanghai"
+        }
+      ];
 
       const mockInstance = {
         dailyTask: jest.fn().mockResolvedValue("daily completed"),
@@ -198,35 +221,33 @@ describe("process/schedule.ts 测试覆盖", () => {
       mockIOCContainer.getClassMetadata.mockReturnValue(mockMetadata);
       mockIOCContainer.get.mockReturnValue(mockInstance);
 
-      await injectSchedule({} as any, {} as any);
+      await injectSchedule({} as any);
 
       expect(mockCronJob).toHaveBeenCalledTimes(2);
       expect(mockLogger.Debug).toHaveBeenCalledWith(
-        expect.stringContaining("Schedule job TaskService_dailyTask registered with cron: 0 0 2 * * *")
+        expect.stringContaining("Schedule job COMPONENT:TaskService_dailyTask registered with cron: 0 0 2 * * *")
       );
       expect(mockLogger.Debug).toHaveBeenCalledWith(
-        expect.stringContaining("Schedule job TaskService_hourlyTask registered with cron: 0 0 * * * *")
+        expect.stringContaining("Schedule job COMPONENT:TaskService_hourlyTask registered with cron: 0 0 * * * *")
       );
     });
 
     it("应该使用getEffectiveTimezone获取时区", async () => {
       const mockComponentList = [
-        { id: "TaskService", target: class TaskService {} }
+        { id: "COMPONENT:TaskService", target: class TaskService {} }
       ];
 
-      const mockMetadata = new Map([
-        ["TaskService", {
-          "SCHEDULED_taskWithTimezone": {
-            method: "taskWithTimezone",
-            cron: "0 0 12 * * *",
-            timezone: "Europe/London"
-          },
-          "SCHEDULED_taskWithoutTimezone": {
-            method: "taskWithoutTimezone",
-            cron: "0 0 18 * * *"
-          }
-        }]
-      ]);
+      const mockMetadata = [
+        {
+          method: "taskWithTimezone",
+          cron: "0 0 12 * * *",
+          timezone: "Europe/London"
+        },
+        {
+          method: "taskWithoutTimezone",
+          cron: "0 0 18 * * *"
+        }
+      ];
 
       const mockInstance = {
         taskWithTimezone: jest.fn(),
@@ -240,7 +261,7 @@ describe("process/schedule.ts 测试覆盖", () => {
       mockGetEffectiveTimezone.mockReturnValueOnce("Europe/London");
       mockGetEffectiveTimezone.mockReturnValueOnce("Asia/Beijing");
 
-      await injectSchedule({} as any, {} as any);
+      await injectSchedule({} as any);
 
       expect(mockGetEffectiveTimezone).toHaveBeenCalledWith({}, "Europe/London");
       expect(mockGetEffectiveTimezone).toHaveBeenCalledWith({}, undefined);
@@ -262,17 +283,15 @@ describe("process/schedule.ts 测试覆盖", () => {
 
     it("应该处理类处理失败的情况", async () => {
       const mockComponentList = [
-        { id: "TaskService", target: class TaskService {} }
+        { id: "COMPONENT:TaskService", target: class TaskService {} }
       ];
 
-      const mockMetadata = new Map([
-        ["TaskService", {
-          "SCHEDULED_dailyTask": {
-            method: "dailyTask",
-            cron: "0 0 2 * * *"
-          }
-        }]
-      ]);
+      const mockMetadata = [
+        {
+          method: "dailyTask",
+          cron: "0 0 2 * * *"
+        }
+      ];
 
       mockIOCContainer.listClass.mockReturnValue(mockComponentList);
       mockIOCContainer.getClassMetadata.mockReturnValue(mockMetadata);
@@ -280,10 +299,11 @@ describe("process/schedule.ts 测试覆盖", () => {
         throw new Error("Get instance failed");
       });
 
-      await injectSchedule({} as any, {} as any);
+      await injectSchedule({} as any);
 
+      // get() throws outside the inner scheduleData loop, caught by outer catch
       expect(mockLogger.Error).toHaveBeenCalledWith(
-        expect.stringContaining("Failed to process class TaskService:"),
+        "Failed to inject schedules:",
         expect.any(Error)
       );
     });
@@ -293,7 +313,7 @@ describe("process/schedule.ts 测试覆盖", () => {
         throw new Error("List class failed");
       });
 
-      await injectSchedule({} as any, {} as any);
+      await injectSchedule({} as any);
 
       expect(mockLogger.Error).toHaveBeenCalledWith(
         "Failed to inject schedules:",
@@ -303,17 +323,15 @@ describe("process/schedule.ts 测试覆盖", () => {
 
     it("应该测试CronJob回调函数的执行", async () => {
       const mockComponentList = [
-        { id: "TaskService", target: class TaskService {} }
+        { id: "COMPONENT:TaskService", target: class TaskService {} }
       ];
 
-      const mockMetadata = new Map([
-        ["TaskService", {
-          "SCHEDULED_testTask": {
-            method: "testTask",
-            cron: "0 0 * * * *"
-          }
-        }]
-      ]);
+      const mockMetadata = [
+        {
+          method: "testTask",
+          cron: "0 0 * * * *"
+        }
+      ];
 
       const mockTaskMethod = jest.fn().mockResolvedValue("task completed");
       const mockInstance = {
@@ -324,7 +342,7 @@ describe("process/schedule.ts 测试覆盖", () => {
       mockIOCContainer.getClassMetadata.mockReturnValue(mockMetadata);
       mockIOCContainer.get.mockReturnValue(mockInstance);
 
-      await injectSchedule({} as any, {} as any);
+      await injectSchedule({} as any);
 
       // 获取CronJob的回调函数
       const cronJobCall = mockCronJob.mock.calls[0];
@@ -335,26 +353,24 @@ describe("process/schedule.ts 测试覆盖", () => {
 
       expect(mockTaskMethod).toHaveBeenCalled();
       expect(mockLogger.Debug).toHaveBeenCalledWith(
-        "The schedule job TaskService_testTask started."
+        "The schedule job COMPONENT:TaskService_testTask started."
       );
       expect(mockLogger.Debug).toHaveBeenCalledWith(
-        "The schedule job TaskService_testTask completed."
+        "The schedule job COMPONENT:TaskService_testTask completed."
       );
     });
 
     it("应该处理CronJob回调函数执行失败", async () => {
       const mockComponentList = [
-        { id: "TaskService", target: class TaskService {} }
+        { id: "COMPONENT:TaskService", target: class TaskService {} }
       ];
 
-      const mockMetadata = new Map([
-        ["TaskService", {
-          "SCHEDULED_failingTask": {
-            method: "failingTask",
-            cron: "0 0 * * * *"
-          }
-        }]
-      ]);
+      const mockMetadata = [
+        {
+          method: "failingTask",
+          cron: "0 0 * * * *"
+        }
+      ];
 
       const mockTaskMethod = jest.fn().mockRejectedValue(new Error("Task execution failed"));
       const mockInstance = {
@@ -365,7 +381,7 @@ describe("process/schedule.ts 测试覆盖", () => {
       mockIOCContainer.getClassMetadata.mockReturnValue(mockMetadata);
       mockIOCContainer.get.mockReturnValue(mockInstance);
 
-      await injectSchedule({} as any, {} as any);
+      await injectSchedule({} as any);
 
       // 获取CronJob的回调函数
       const cronJobCall = mockCronJob.mock.calls[0];
@@ -376,33 +392,31 @@ describe("process/schedule.ts 测试覆盖", () => {
 
       expect(mockTaskMethod).toHaveBeenCalled();
       expect(mockLogger.Debug).toHaveBeenCalledWith(
-        "The schedule job TaskService_failingTask started."
+        "The schedule job COMPONENT:TaskService_failingTask started."
       );
       // 等待Promise.resolve().catch()完成
       await new Promise(resolve => setTimeout(resolve, 0));
       expect(mockLogger.Error).toHaveBeenCalledWith(
-        "The schedule job TaskService_failingTask failed:",
+        "The schedule job COMPONENT:TaskService_failingTask failed:",
         expect.any(Error)
       );
     });
 
     it("应该记录调度任务统计信息", async () => {
       const mockComponentList = [
-        { id: "TaskService", target: class TaskService {} }
+        { id: "COMPONENT:TaskService", target: class TaskService {} }
       ];
 
-      const mockMetadata = new Map([
-        ["TaskService", {
-          "SCHEDULED_task1": {
-            method: "task1",
-            cron: "0 0 1 * * *"
-          },
-          "SCHEDULED_task2": {
-            method: "task2",
-            cron: "0 0 2 * * *"
-          }
-        }]
-      ]);
+      const mockMetadata = [
+        {
+          method: "task1",
+          cron: "0 0 1 * * *"
+        },
+        {
+          method: "task2",
+          cron: "0 0 2 * * *"
+        }
+      ];
 
       const mockInstance = {
         task1: jest.fn(),
@@ -413,11 +427,11 @@ describe("process/schedule.ts 测试覆盖", () => {
       mockIOCContainer.getClassMetadata.mockReturnValue(mockMetadata);
       mockIOCContainer.get.mockReturnValue(mockInstance);
 
-      await injectSchedule({} as any, {} as any);
+      await injectSchedule({} as any);
 
       expect(mockLogger.Info).toHaveBeenCalledWith(
         "Batch schedule injection completed. 2 jobs registered."
       );
     });
   });
-}); 
+});
