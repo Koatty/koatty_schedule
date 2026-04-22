@@ -10,7 +10,7 @@ Schedule task decorator with optimized preprocessing
 **Signature:**
 
 ```typescript
-export declare function Scheduled(cron: string, timezone?: string): MethodDecorator;
+export declare function Scheduled(cron: string, timezone?: string): (...args: any[]) => any;
 ```
 
 ## Parameters
@@ -69,7 +69,7 @@ Cron expression format: \* Seconds: 0-59 \* Minutes: 0-59 \* Hours: 0-23 \* Day 
 
 **Returns:**
 
-MethodDecorator
+(...args: any\[\]) =&gt; any
 
 {<!-- -->MethodDecorator<!-- -->}
 

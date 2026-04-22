@@ -10,7 +10,7 @@ Redis-based distributed lock decorator
 **Signature:**
 
 ```typescript
-export declare function RedLock(lockName?: string, options?: RedLockMethodOptions): MethodDecorator;
+export declare function RedLock(lockName?: string, options?: RedLockMethodOptions): (...args: any[]) => any;
 ```
 
 ## Parameters
@@ -67,7 +67,7 @@ _(Optional)_ Lock configuration options for this method
 
 **Returns:**
 
-MethodDecorator
+(...args: any\[\]) =&gt; any
 
 {<!-- -->MethodDecorator<!-- -->}
 
