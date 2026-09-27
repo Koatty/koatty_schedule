@@ -60,7 +60,17 @@ const defaultRedlockSettings: Partial<Settings> = {
 export class RedLocker implements IDistributedLock {
   private static instance: RedLocker | null = null;
   private static readonly instanceLock = Symbol('RedLocker.instanceLock');
-  
+
+  /**
+   * IOC 容器注册记录（注册时记住 identifier/type，重置时据此使容器缓存失效）。
+   * koatty_container 当前版本没有提供按 identifier 删除注册/实例记录的 API
+   * （旧版 setExistingInstance 已移除，clearClass/clearInstances 会波及整个容器），
+   * 因此 resetInstance 时将该记录置空，使下一次 getInstance() 跳过容器查找、
+   * 走直接构造路径，从而保证重置后“允许新实例/新配置”的语义；
+   * 新实例创建时 registerInContainer 会重新登记注册信息。
+   */
+  private static containerRegistration: { identifier: string; type: string } | null = null;
+
   private redlock: Redlock | null = null;
   private redisClient: RedisClientAdapter | null = null;
   private config: RedLockOptions;
@@ -82,7 +92,13 @@ export class RedLocker implements IDistributedLock {
     try {
       const RedLockerClass = this.constructor as Function;
       IOCContainer.saveClass('COMPONENT', RedLockerClass, 'RedLocker');
-      IOCContainer.setExistingInstance(RedLockerClass, this);
+      // 兼容不同版本的 koatty_container：新版已移除 setExistingInstance
+      const containerApi = IOCContainer as unknown as Record<string, unknown>;
+      if (typeof containerApi.setExistingInstance === 'function') {
+        (containerApi.setExistingInstance as (cls: Function, inst: unknown) => void)(RedLockerClass, this);
+      }
+      // 记住注册信息，供 resetInstance 使容器缓存失效时使用
+      RedLocker.containerRegistration = { identifier: 'RedLocker', type: 'COMPONENT' };
       logger.Debug('RedLocker registered in IOC container');
     } catch (_error) {
       logger.Warn('Failed to register RedLocker in IOC container:', _error);
@@ -101,8 +117,11 @@ export class RedLocker implements IDistributedLock {
       // 首次创建时使用选项，后续调用忽略选项参数
       if (RedLocker.instance === null) {
         try {
-          // 尝试从IOC容器获取已存在的实例
-          const containerInstance = IOCContainer.get('RedLocker', 'COMPONENT') as RedLocker;
+          // 仅当注册记录仍有效时才尝试从IOC容器获取已存在的实例；
+          // 重置后记录已失效，必须走直接构造路径以允许新实例/新配置
+          const containerInstance = RedLocker.containerRegistration
+            ? (IOCContainer.get(RedLocker.containerRegistration.identifier, RedLocker.containerRegistration.type) as RedLocker)
+            : null;
           if (containerInstance) {
             RedLocker.instance = containerInstance;
             logger.Debug('Retrieved existing RedLocker instance from IOC container');
@@ -127,6 +146,10 @@ export class RedLocker implements IDistributedLock {
 
   /**
    * Reset singleton instance (主要用于测试)
+   * 同时使 IOC 容器中缓存的注册/实例记录失效：
+   * koatty_container 没有按 identifier 删除记录的 API（clearClass/clearInstances
+   * 会影响整个容器），因此这里清空注册标记，让下一次 getInstance() 不再信任
+   * 容器缓存（旧实例可能持有旧配置且被容器 Object.seal），走直接构造路径。
    * @static
    */
   public static resetInstance(): void {
@@ -136,6 +159,8 @@ export class RedLocker implements IDistributedLock {
       );
       RedLocker.instance = null;
     }
+    // 清理容器注册记录，使下次 getInstance 走直接构造路径（新实例/新配置）
+    RedLocker.containerRegistration = null;
   }
 
   /**

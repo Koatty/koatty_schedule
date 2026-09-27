@@ -4,8 +4,44 @@ import { Scheduled } from "../src/decorator/scheduled";
 import { COMPONENT_SCHEDULED, DecoratorType, validateCronExpression } from "../src/config/config";
 
 // Mock依赖
-jest.mock("koatty_container");
-jest.mock("koatty_lib");
+// 注意1：koatty_lib 打包形态同时具有顶层函数导出与 `export * as Helper` 命名空间，
+// automock 会产出空 Helper 对象（Helper.isEmpty 等为 undefined），导致 beforeEach 崩溃，
+// 这里改为手动 mock，显式提供测试路径用到的 Helper 方法，
+// 并补充 koatty-logger 在模块加载期用到的顶层 helper（isTrueEmpty/isError）。
+jest.mock("koatty_lib", () => {
+  const isTrueEmpty = (value: unknown): boolean =>
+    value === undefined || value === null || value === '' || (typeof value === 'number' && isNaN(value));
+  return {
+    Helper: {
+      isEmpty: jest.fn((v: unknown) => isTrueEmpty(v)),
+      isFunction: jest.fn((f: unknown) => typeof f === 'function'),
+    },
+    isTrueEmpty: jest.fn(isTrueEmpty),
+    isError: jest.fn((e: unknown) => e instanceof Error),
+  };
+});
+// 注意2：不能用 automock（jest.mock("koatty_container")），
+// automock 会使 IOCContainer.createDecorator 变成返回 undefined 的 jest.fn，
+// 导致 Scheduled() 工厂返回 undefined、装饰器抛 "decorator is not a function"。
+// 这里给 createDecorator 一个透传实现：模拟 createDualMethodDecorator 的
+// 双模式分发，legacy 形态调用 handler({ target, methodName, descriptor })。
+jest.mock("koatty_container", () => ({
+  IOCContainer: {
+    createDecorator: (handler: any, _type?: string) =>
+      (...args: any[]) => {
+        const isTC39 = args.length === 2 && args[1] && typeof args[1] === "object" && "kind" in args[1];
+        if (isTC39) {
+          const [method, context] = args;
+          return handler({ methodName: String(context.name), method, context });
+        }
+        const [target, key, descriptor] = args;
+        return handler({ target, methodName: String(key), descriptor });
+      },
+    getType: jest.fn(),
+    saveClass: jest.fn(),
+    attachClassMetadata: jest.fn(),
+  }
+}));
 jest.mock("../src/config/config", () => ({
   ...jest.requireActual("../src/config/config"),
   validateCronExpression: jest.fn()

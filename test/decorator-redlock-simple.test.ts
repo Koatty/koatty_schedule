@@ -4,7 +4,28 @@ import { validateRedLockMethodOptions } from "../src/config/config";
 import { redLockerDescriptor, generateLockName } from "../src/process/locker";
 
 // Mock依赖
-jest.mock("koatty_container");
+// 注意：不能用 automock（jest.mock("koatty_container")），
+// automock 会使 IOCContainer.createDecorator 变成返回 undefined 的 jest.fn，
+// 导致 RedLock() 工厂返回 undefined、装饰器抛 "decorator is not a function"。
+// 这里改为手动 mock，并给 createDecorator 一个透传实现：
+// 模拟 koatty_container 的 createDualMethodDecorator 双模式分发，
+// legacy 形态调用 handler({ target, methodName, descriptor }) 并返回其结果（descriptor）。
+jest.mock("koatty_container", () => ({
+  IOCContainer: {
+    createDecorator: (handler: any, _type?: string) =>
+      (...args: any[]) => {
+        const isTC39 = args.length === 2 && args[1] && typeof args[1] === "object" && "kind" in args[1];
+        if (isTC39) {
+          const [method, context] = args;
+          return handler({ methodName: String(context.name), method, context });
+        }
+        const [target, key, descriptor] = args;
+        return handler({ target, methodName: String(key), descriptor });
+      },
+    getType: jest.fn(),
+    saveClass: jest.fn(),
+  }
+}));
 jest.mock("../src/config/config", () => ({
   ...jest.requireActual("../src/config/config"),
   validateRedLockMethodOptions: jest.fn()

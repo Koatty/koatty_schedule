@@ -8,7 +8,23 @@ import { timeoutPromise } from "../src/utils/lib";
 
 // Mock依赖
 jest.mock("koatty_container");
-jest.mock("koatty_lib");
+// 注意：koatty_lib 打包形态同时具有顶层函数导出与 `export * as Helper` 命名空间，
+// automock 会产出空 Helper 对象（Helper.isFunction 等为 undefined），导致 beforeEach 崩溃。
+// 这里改为手动 mock：提供测试路径用到的 Helper 方法（src/process/locker.ts），
+// 以及 koatty-logger 在模块加载期用到的顶层 helper（isTrueEmpty/isError，
+// koatty-container automock 时会加载真实 dist 并构造 DefaultLogger）。
+jest.mock("koatty_lib", () => {
+  const isTrueEmpty = (value: unknown): boolean =>
+    value === undefined || value === null || value === '' || (typeof value === 'number' && isNaN(value));
+  return {
+    Helper: {
+      isFunction: jest.fn((f: unknown) => typeof f === 'function'),
+      isEmpty: jest.fn((v: unknown) => isTrueEmpty(v)),
+    },
+    isTrueEmpty: jest.fn(isTrueEmpty),
+    isError: jest.fn((e: unknown) => e instanceof Error),
+  };
+});
 jest.mock("koatty_logger");
 jest.mock("../src/locker/redlock");
 jest.mock("../src/utils/lib");

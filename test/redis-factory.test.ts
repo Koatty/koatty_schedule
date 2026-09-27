@@ -72,7 +72,7 @@ describe('Redis Factory Multi-Mode Support', () => {
       } as RedisStandaloneConfig;
 
       expect(() => RedisFactory.validateConfig(config)).toThrow(
-        '单机模式需要 host 配置'
+        'Standalone mode requires host configuration'
       );
     });
 
@@ -83,7 +83,7 @@ describe('Redis Factory Multi-Mode Support', () => {
       } as RedisStandaloneConfig;
 
       expect(() => RedisFactory.validateConfig(config)).toThrow(
-        '单机模式需要 port 配置'
+        'Standalone mode requires port configuration'
       );
     });
   });
@@ -116,7 +116,7 @@ describe('Redis Factory Multi-Mode Support', () => {
       } as RedisSentinelConfig;
 
       expect(() => RedisFactory.validateConfig(config)).toThrow(
-        '哨兵模式需要至少一个哨兵节点配置'
+        'Sentinel mode requires at least one sentinel node'
       );
     });
 
@@ -127,7 +127,7 @@ describe('Redis Factory Multi-Mode Support', () => {
       } as RedisSentinelConfig;
 
       expect(() => RedisFactory.validateConfig(config)).toThrow(
-        '哨兵模式需要 master name 配置'
+        'Sentinel mode requires master name'
       );
     });
   });
@@ -161,7 +161,7 @@ describe('Redis Factory Multi-Mode Support', () => {
       } as RedisClusterConfig;
 
       expect(() => RedisFactory.validateConfig(config)).toThrow(
-        '集群模式需要至少一个节点配置'
+        'Cluster mode requires at least one node'
       );
     });
   });
@@ -183,7 +183,7 @@ describe('Redis Factory Multi-Mode Support', () => {
   describe('Invalid Configuration', () => {
     test('应该拒绝空配置', () => {
       expect(() => RedisFactory.validateConfig(null as any)).toThrow(
-        'Redis 配置不能为空'
+        'Redis configuration cannot be empty'
       );
     });
 
@@ -195,7 +195,7 @@ describe('Redis Factory Multi-Mode Support', () => {
       } as any;
 
       expect(() => RedisFactory.validateConfig(config)).toThrow(
-        '不支持的 Redis 模式'
+        'Unsupported Redis mode'
       );
     });
   });

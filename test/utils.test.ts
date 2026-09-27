@@ -39,9 +39,11 @@ describe('Utils Module Tests', () => {
 
     test('should handle large timeout values', async () => {
       const promise = timeoutPromise(5000);
-      
+
       // We won't wait for it, just check it's a promise
       expect(promise).toBeInstanceOf(Promise);
+      // 取消定时器，避免悬挂的 promise 在测试结束后 reject 造成 unhandledRejection 使进程崩溃
+      promise.cancel();
     });
 
     test('should create multiple independent timeouts', async () => {
@@ -63,9 +65,11 @@ describe('Utils Module Tests', () => {
     test('should clean up timeout properly', async () => {
       // Create a timeout but don't wait for it
       const promise = timeoutPromise(10000);
-      
+
       // The promise should eventually reject
       expect(promise).toBeInstanceOf(Promise);
+      // 真正地清理定时器，避免悬挂的 promise 在测试结束后 reject 造成 unhandledRejection
+      promise.cancel();
     });
 
     test('should handle negative timeout', async () => {
@@ -267,17 +271,18 @@ describe('Utils Module Tests', () => {
 
   describe('Edge Cases and Error Handling', () => {
     
-    test('should handle utilities working together', () => {
+    test('should handle utilities working together', async () => {
       // Create a function that returns a timeout promise
       const timeoutCreator = (ms: number) => timeoutPromise(ms);
-      
-      // Don't await - just create the promise and verify it's a promise
+
       const timeoutPromiseResult = wrappedPromise(timeoutCreator, [50]);
       expect(timeoutPromiseResult).toBeInstanceOf(Promise);
       expect(typeof timeoutPromiseResult.then).toBe('function');
-      
-      // Clean up any timers
-      jest.clearAllTimers();
+
+      // wrappedPromise resolve 的值是 timeoutPromise（thenable），
+      // 外层 promise 会采纳其状态并最终以 TIME_OUT_ERROR reject。
+      // 这里显式等待该 rejection，避免悬挂 rejection 造成 unhandledRejection 使进程崩溃
+      await expect(timeoutPromiseResult).rejects.toThrow('TIME_OUT_ERROR');
     });
 
     test('should handle concurrent operations', async () => {
