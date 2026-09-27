@@ -4,7 +4,7 @@
 
 ## RedLocker.resetInstance() method
 
-Reset singleton instance (主要用于测试) 
+Reset singleton instance (主要用于测试) 同时使 IOC 容器中缓存的注册/实例记录失效： koatty\_container 没有按 identifier 删除记录的 API（clearClass/clearInstances 会影响整个容器），因此这里清空注册标记，让下一次 getInstance() 不再信任 容器缓存（旧实例可能持有旧配置且被容器 Object.seal），走直接构造路径。 
 
 **Signature:**
 
