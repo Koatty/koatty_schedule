@@ -114,7 +114,7 @@ Redis-based distributed lock decorator
 </td></tr>
 <tr><td>
 
-[Scheduled(cron, timezone)](./koatty_schedule.scheduled.md)
+[Scheduled(cron, timezoneOrOptions, legacyOverlap)](./koatty_schedule.scheduled.md)
 
 
 </td><td>

@@ -10,7 +10,7 @@ Schedule task decorator with optimized preprocessing
 **Signature:**
 
 ```typescript
-export declare function Scheduled(cron: string, timezone?: string): (...args: any[]) => any;
+export declare function Scheduled(cron: string, timezoneOrOptions?: string | ScheduledTaskOptions, legacyOverlap?: OverlapPolicy): (...args: any[]) => any;
 ```
 
 ## Parameters
@@ -49,19 +49,33 @@ Cron expression for task scheduling
 </td></tr>
 <tr><td>
 
-timezone
+timezoneOrOptions
 
 
 </td><td>
 
-string
+string \| ScheduledTaskOptions
 
 
 </td><td>
 
-_(Optional)_ Timezone for the schedule
+_(Optional)_
 
-Cron expression format: \* Seconds: 0-59 \* Minutes: 0-59 \* Hours: 0-23 \* Day of Month: 1-31 \* Months: 1-12 (Jan-Dec) \* Day of Week: 1-7 (Sun-Sat)
+
+</td></tr>
+<tr><td>
+
+legacyOverlap
+
+
+</td><td>
+
+OverlapPolicy
+
+
+</td><td>
+
+_(Optional)_
 
 
 </td></tr>

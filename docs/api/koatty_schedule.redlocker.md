@@ -203,5 +203,21 @@ Update configuration (requires reinitialization)
 
 
 </td></tr>
+<tr><td>
+
+[using(resources, ttl, automaticExtensionThreshold, handler)](./koatty_schedule.redlocker.using.md)
+
+
+</td><td>
+
+
+</td><td>
+
+COR-05 (C-3): run `handler` while holding an automatically renewed lock.
+
+`@sesamecare-oss/redlock`<!-- -->'s `using()` keeps extending the lock in the background (extension happens strictly before the TTL expires) and hands an `AbortSignal` to the handler, so the business code can notice that the lock was lost instead of a `Promise.race` timeout that cannot cancel anything.
+
+
+</td></tr>
 </tbody></table>
 
