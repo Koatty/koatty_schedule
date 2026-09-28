@@ -1,5 +1,14 @@
 # Changelog
 
+## 6.1.0
+
+### Minor Changes
+
+- Phase C correctness (koatty-hardening-and-ai-evolution-plan.md, C-3 COR-05 / C-4 COR-06).
+
+  - `@RedLock`: the decorated method now runs **exactly once** under a lock that is renewed in the background (`RedLocker.using()`). The previous implementation raced the method against a timeout and, on `TIME_OUT_ERROR`, extended the lock and **executed the business method again**, which could double-run a non-idempotent job. The `AbortSignal` is handed to the decorated method so it can notice a lost lock before writing, only one resource (the lock name) is locked per method, and the new `maxHoldTime` option (default `lockTimeOut × 10`) makes the call fail instead of re-running when the hold time is exceeded.
+  - `@Scheduled`: new `overlap` policy `'skip' | 'queue' | 'allow'` (default `'skip'`) so a slow run no longer stacks on top of the next tick; `queue` keeps at most one pending run, and `allow` restores the legacy behaviour.
+
 ## 6.0.0
 
 ### Patch Changes
