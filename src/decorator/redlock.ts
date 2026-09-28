@@ -9,9 +9,8 @@
  */
 
 import { IOCContainer } from "koatty_container";
-import { DefaultLogger as logger } from "koatty_logger";
 import { RedLockMethodOptions, validateRedLockMethodOptions } from "../config/config";
-import { redLockerDescriptor, generateLockName } from "../process/locker";
+import { redLockerDescriptor, generateLockName, runWithBoundedLock } from "../process/locker";
 
 /**
  * Redis-based distributed lock decorator
@@ -80,38 +79,8 @@ export function RedLock(lockName?: string, options?: RedLockMethodOptions) {
           // the method runs exactly once (no timeout-triggered re-run).
           const maxHoldTime = options?.maxHoldTime ?? lockTime * 10;
 
-          return await redlock.using(
-            [resolvedLockName],
-            lockTime,
-            500,
-            async (signal: AbortSignal) => {
-              let holdExceeded = false;
-              const watchdog = setTimeout(() => {
-                holdExceeded = true;
-                logger.Error(
-                  `Method ${methodName} has held the lock longer than maxHoldTime (${maxHoldTime}ms). ` +
-                  `The lock is no longer guaranteed and the method will NOT be re-run.`
-                );
-              }, maxHoldTime);
-              (watchdog as { unref?: () => void }).unref?.();
-
-              try {
-                const result = await originalMethod.apply(this, [...props, { signal }]);
-                if (signal.aborted) {
-                  const abortError = (signal as AbortSignal & { error?: Error }).error;
-                  throw abortError ?? new Error(`Lock lost while running ${methodName}: renewal failed`);
-                }
-                if (holdExceeded) {
-                  throw new Error(
-                    `Method ${methodName} exceeded maxHoldTime (${maxHoldTime}ms); the result is not trustworthy`
-                  );
-                }
-                return result;
-              } finally {
-                clearTimeout(watchdog);
-              }
-            }
-          );
+          return await runWithBoundedLock(redlock, resolvedLockName, lockTime, maxHoldTime,
+            methodName, signal => originalMethod.apply(this, [...props, { signal }]));
         } catch (error) {
           throw error;
         }

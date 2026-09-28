@@ -97,43 +97,8 @@ export function redLockerDescriptor(
     const resource = name;
     const startedAt = Date.now();
 
-    const result = await redlock.using(
-      [resource],
-      lockTime,
-      500,
-      async (signal: AbortSignal) => {
-        let holdExceeded = false;
-        const watchdog = setTimeout(() => {
-          holdExceeded = true;
-          logger.Error(
-            `Method ${method} has held the lock longer than maxHoldTime (${maxHoldTime}ms). ` +
-            `The lock is no longer guaranteed and the method will NOT be re-run.`
-          );
-        }, maxHoldTime);
-        // never keep the event loop alive just for this watchdog
-        (watchdog as { unref?: () => void }).unref?.();
-
-        try {
-          // COR-05: the AbortSignal is handed to the business method so it can
-          // check it before doing writes; a strict-fencing need should use a
-          // fencing token.
-          const value2 = await value.apply(self, [...props, { signal }]);
-
-          if (signal.aborted) {
-            const abortError = (signal as AbortSignal & { error?: Error }).error;
-            throw abortError ?? new Error(`Lock lost while running ${method}: renewal failed`);
-          }
-          if (holdExceeded) {
-            throw new Error(
-              `Method ${method} exceeded maxHoldTime (${maxHoldTime}ms); the result is not trustworthy`
-            );
-          }
-          return value2;
-        } finally {
-          clearTimeout(watchdog);
-        }
-      }
-    );
+    const result = await runWithBoundedLock(redlock, resource, lockTime, maxHoldTime,
+      method, signal => value.apply(self, [...props, { signal }]));
 
     logger.Debug(`Method ${method} finished under lock after ${Date.now() - startedAt}ms`);
     return result;
@@ -185,4 +150,32 @@ export function generateLockName(configName: string | undefined, methodName: str
   const targetWithConstructor = target as { constructor?: Function };
   const className = targetWithConstructor.constructor?.name || 'Unknown';
   return `${className}_${methodName}`;
+}
+/** The business must observe signal before writes; uncooperative code requires fencing. */
+export async function runWithBoundedLock<T>(redlock: RedLocker, resource: string, ttl: number,
+  maxHoldTime: number, method: string, work: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  if (!Number.isFinite(maxHoldTime) || maxHoldTime <= 0) throw new Error('maxHoldTime must be positive');
+  return redlock.using([resource], ttl, Math.min(500, Math.floor(ttl / 2)), async (leaseSignal) => {
+    const controller = new AbortController();
+    let rejectAbort!: (reason: Error) => void;
+    const interrupted = new Promise<never>((_, reject) => { rejectAbort = reject; });
+    const abort = (reason: Error) => {
+      if (!controller.signal.aborted) { controller.abort(reason); rejectAbort(reason); }
+    };
+    const lost = () => abort((leaseSignal as any).error || leaseSignal.reason || new Error(`Lock lost while running ${method}`));
+    leaseSignal.addEventListener('abort', lost, { once: true });
+    const watchdog = setTimeout(() => abort(new Error(`Method ${method} exceeded maxHoldTime (${maxHoldTime}ms)`)), maxHoldTime);
+    try {
+      const business = Promise.resolve().then(() => work(controller.signal));
+      if (leaseSignal.aborted) lost();
+      // Settling the using callback stops renewal and releases the lease. The signal,
+      // not this race, is the cooperative cancellation mechanism for the business.
+      const result = await Promise.race([business, interrupted]);
+      if (controller.signal.aborted) throw controller.signal.reason;
+      return result;
+    } finally {
+      clearTimeout(watchdog);
+      leaseSignal.removeEventListener('abort', lost);
+    }
+  });
 }

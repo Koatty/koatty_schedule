@@ -28,6 +28,7 @@ interface TaskState {
 }
 
 /** per-task `running` / `queued` flags (COR-06) */
+let stopping = false;
 const taskStates = new Map<string, TaskState>();
 /** jobs registered by `injectSchedule`, stopped together on shutdown */
 const registeredJobs: CronJob[] = [];
@@ -44,6 +45,7 @@ export function runScheduledTask(
   targetMethod: () => unknown,
   overlap: OverlapPolicy = 'skip'
 ): Promise<void> | undefined {
+  if (stopping) return undefined;
   let state = taskStates.get(taskName);
   if (!state) {
     state = { running: false, queued: false };
@@ -82,7 +84,7 @@ export function runScheduledTask(
       .finally(() => {
         state!.running = false;
         inFlightTasks.delete(task);
-        if (state!.queued) {
+        if (state!.queued && !stopping) {
           // COR-06: at most one queued run, started as soon as this one is done
           state!.queued = false;
           runOnce();
@@ -101,6 +103,8 @@ export function runScheduledTask(
  * the tasks that are still running, so a deploy does not cut a job mid-way.
  */
 export async function stopSchedule(drainTimeout = 25000): Promise<void> {
+  stopping = true;
+  for (const state of taskStates.values()) state.queued = false;
   const jobs = registeredJobs.splice(0, registeredJobs.length);
   for (const job of jobs) {
     try {
@@ -137,6 +141,7 @@ export function getRunningTaskCount(): number {
 
 /** Clear the internal registries (test helper). */
 export function resetScheduleState(): void {
+  stopping = false;
   registeredJobs.splice(0, registeredJobs.length);
   inFlightTasks.clear();
   taskStates.clear();
@@ -159,7 +164,7 @@ export async function initSchedule(options: any, app: Koatty): Promise<void> {
     // COR-06: stop the jobs and let the in-flight runs finish on shutdown
     if (Helper.isFunction(app.once)) {
       app.once('appStop', () => {
-        void stopSchedule(options?.drainTimeout ?? 25000);
+        return stopSchedule(options?.drainTimeout ?? 25000);
       });
     }
     logger.Info('Schedule system initialized successfully');
