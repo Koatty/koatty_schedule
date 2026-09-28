@@ -34,6 +34,7 @@ jest.mock('@sesamecare-oss/redlock', () => {
   return {
     Redlock: jest.fn().mockImplementation(() => ({
       acquire: jest.fn(),
+      using: jest.fn(async (_resources: string[], _ttl: number, _settings: any, handler: any) => handler(new AbortController().signal)),
       on: jest.fn()
     }))
   };
@@ -100,9 +101,16 @@ describe('Enhanced RedLock Features', () => {
         release: jest.fn().mockResolvedValue(undefined)
       };
 
+      // COR-05: the wrapper now goes through RedLocker.using() (auto-renewal),
+      // so the underlying redlock client must expose using() as well.
       mockRedlock = {
         acquire: jest.fn().mockResolvedValue(mockLock),
-        on: jest.fn()
+        on: jest.fn(),
+        using: jest.fn(async (_resources: string[], ttl: number, _settings: any, handler: any) => {
+          // 模拟 redlock 库在 TTL 到期前于后台自动续期
+          await mockLock.extend(ttl);
+          return handler(new AbortController().signal);
+        })
       };
 
       // Mock RedLocker initialization
@@ -111,23 +119,16 @@ describe('Enhanced RedLock Features', () => {
       (redLocker as any).isInitialized = true;
     });
 
-    test('应该正确处理锁续期逻辑', async () => {
+    test('应该通过后台续期保持锁，业务逻辑只执行一次', async () => {
       let callCount = 0;
       const mockMethod = jest.fn().mockImplementation(async () => {
         callCount++;
-        if (callCount === 1) {
-          // 第一次调用模拟超时
-          throw new Error('TIME_OUT_ERROR');
+        if (callCount > 1) {
+          // COR-05 回归：超时后绝不允许重跑业务逻辑
+          throw new Error('business method must not be re-run');
         }
         return 'success';
       });
-
-      // 模拟锁续期返回新锁
-      const extendedLock = {
-        extend: jest.fn(),
-        release: jest.fn().mockResolvedValue(undefined)
-      };
-      mockLock.extend.mockResolvedValue(extendedLock);
 
       const descriptor = redLockerDescriptor(
         { value: mockMethod, writable: true, enumerable: false, configurable: true },
@@ -137,38 +138,39 @@ describe('Enhanced RedLock Features', () => {
       );
 
       const result = await descriptor.value!.call({});
-      
+
       expect(result).toBe('success');
-      expect(mockMethod).toHaveBeenCalledTimes(2); // 第一次超时，第二次成功
+      expect(mockMethod).toHaveBeenCalledTimes(1);
+      // 续期由 redlock 库在后台按 TTL 完成
       expect(mockLock.extend).toHaveBeenCalledWith(2000);
-      expect(extendedLock.release).toHaveBeenCalled();
-      
-      debugLog('Lock extension test passed: method retried after extension');
+      expect(mockRedlock.using).toHaveBeenCalledWith(
+        [expect.stringContaining('test-lock')],
+        2000,
+        { automaticExtensionThreshold: 500 },
+        expect.any(Function)
+      );
+
+      debugLog('Lock auto-renewal test passed: method executed exactly once');
     });
 
-    test('应该限制最大续期次数', async () => {
-      const mockMethod = jest.fn().mockImplementation(async () => {
-        throw new Error('TIME_OUT_ERROR');
+    test('超过 maxHoldTime 后不再重跑业务逻辑而是报错', async () => {
+      const slowMethod = jest.fn().mockImplementation(async () => {
+        await new Promise(resolve => setTimeout(resolve, 30));
+        return 'late-result';
       });
 
       const descriptor = redLockerDescriptor(
-        { value: mockMethod, writable: true, enumerable: false, configurable: true },
+        { value: slowMethod, writable: true, enumerable: false, configurable: true },
         'test-lock',
         'testMethod',
-        { lockTimeOut: 1000 }
+        { lockTimeOut: 1000, maxHoldTime: 5 }
       );
 
-      // 模拟续期失败导致锁扩展问题
-      mockLock.extend.mockRejectedValue(new Error('Cannot read properties of undefined (reading \'extend\')'));
+      await expect(descriptor.value!.call({})).rejects.toThrow(/exceeded maxHoldTime/);
 
-      await expect(descriptor.value!.call({})).rejects.toThrow(
-        'Lock extension failed'
-      );
-      
-      expect(mockMethod).toHaveBeenCalledTimes(1); // 初始调用
-      expect(mockLock.extend).toHaveBeenCalledTimes(1); // 尝试扩展一次
-      
-      debugLog('Max extension limit test passed: limited to 3 extensions');
+      expect(slowMethod).toHaveBeenCalledTimes(1); // 绝不重跑
+
+      debugLog('Max hold time test passed: bounded hold time, no re-run');
     });
 
     test('应该在非超时错误时直接抛出', async () => {
@@ -182,11 +184,11 @@ describe('Enhanced RedLock Features', () => {
       );
 
       await expect(descriptor.value!.call({})).rejects.toThrow('Business logic error');
-      
+
       expect(mockMethod).toHaveBeenCalledTimes(1);
-      expect(mockLock.extend).not.toHaveBeenCalled();
-      expect(mockLock.release).toHaveBeenCalled();
-      
+      // 锁的释放由 redlock 库的 using() 负责，业务错误不会被重试
+      expect(mockRedlock.using).toHaveBeenCalledTimes(1);
+
       debugLog('Non-timeout error test passed: business error thrown directly');
     });
   });

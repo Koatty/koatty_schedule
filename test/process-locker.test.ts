@@ -53,7 +53,10 @@ describe("process/locker.ts 测试覆盖", () => {
       acquire: jest.fn().mockResolvedValue({
         extend: jest.fn().mockResolvedValue({}),
         release: jest.fn().mockResolvedValue(undefined)
-      })
+      }),
+      // COR-05: the wrapper now runs the method under an auto-renewed lock
+      using: jest.fn(async (_resources: string[], _ttl: number, _settings: any, handler: any) =>
+        handler(new AbortController().signal))
     };
 
     mockRedLocker.getInstance.mockReturnValue(mockRedLockerInstance);
@@ -203,9 +206,15 @@ describe("process/locker.ts 测试覆盖", () => {
       const enhancedDescriptor = redLockerDescriptor(descriptor, "test-lock", "testMethod");
       const result = await enhancedDescriptor.value.call({}, "arg1", "arg2");
 
-      expect(mockRedLockerInstance.acquire).toHaveBeenCalledWith(["testMethod", "test-lock"], 10000);
-      expect(originalMethod).toHaveBeenCalledWith("arg1", "arg2");
-      expect(mockLock.release).toHaveBeenCalled();
+      // COR-05: 单个资源（锁名）+ using() 自动续期；业务方法只执行一次
+      expect(mockRedLockerInstance.using).toHaveBeenCalledWith(
+        ["test-lock"],
+        10000,
+        500,
+        expect.any(Function)
+      );
+      expect(originalMethod).toHaveBeenCalledTimes(1);
+      expect(originalMethod).toHaveBeenCalledWith("arg1", "arg2", { signal: expect.any(AbortSignal) });
       expect(result).toBe("success");
     });
 
@@ -256,11 +265,12 @@ describe("process/locker.ts 测试覆盖", () => {
         writable: true
       };
 
-      mockRedLockerInstance.acquire.mockRejectedValue(new Error("Lock acquisition failed"));
+      mockRedLockerInstance.using.mockRejectedValue(new Error("Lock acquisition failed"));
 
       const enhancedDescriptor = redLockerDescriptor(descriptor, "test-lock", "testMethod");
       
       await expect(enhancedDescriptor.value.call({})).rejects.toThrow("Lock acquisition failed");
+      expect(originalMethod).not.toHaveBeenCalled();
       expect(mockLogger.Error).toHaveBeenCalledWith(
         expect.stringContaining("RedLock operation failed"),
         expect.any(Error)

@@ -82,7 +82,9 @@ describe("decorator/scheduled.ts 测试覆盖", () => {
         {
           method: "scheduledMethod",
           cron: "0 */5 * * * *",
-          timezone: "Asia/Shanghai"
+          timezone: "Asia/Shanghai",
+          // COR-06: the overlap policy is part of the stored metadata (default: skip)
+          overlap: "skip"
         },
         TestService.prototype,
         "scheduledMethod"

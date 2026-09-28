@@ -11,6 +11,17 @@
 import { Helper } from "koatty_lib";
 import { COMPONENT_SCHEDULED, DecoratorType, validateCronExpression } from "../config/config";
 import { IOCContainer } from "koatty_container";
+import type { OverlapPolicy } from "../process/schedule";
+
+/**
+ * COR-06 (C-4): `@Scheduled` options.
+ * `timezone` keeps the legacy second argument working; `overlap` decides what
+ * happens when a tick fires while the previous run is still in flight.
+ */
+export interface ScheduledTaskOptions {
+  timezone?: string;
+  overlap?: OverlapPolicy;
+}
 
 /**
  * Schedule task decorator with optimized preprocessing
@@ -30,7 +41,26 @@ import { IOCContainer } from "koatty_container";
  * @returns {MethodDecorator}
  * @throws {Error} When cron expression is invalid or decorator is used on wrong class type
  */
-export function Scheduled(cron: string, timezone = 'Asia/Beijing') {
+export function Scheduled(cron: string, timezoneOrOptions: string | ScheduledTaskOptions = 'Asia/Beijing', legacyOverlap?: OverlapPolicy) {
+  // COR-06: `@Scheduled('*/10 * * * * *', 'Asia/Shanghai')` (legacy) and
+  // `@Scheduled('*/10 * * * * *', { overlap: 'skip', timezone })` are both valid.
+  const options: ScheduledTaskOptions = typeof timezoneOrOptions === 'string'
+    ? { timezone: timezoneOrOptions, overlap: legacyOverlap }
+    : { ...(timezoneOrOptions ?? {}) };
+
+  // legacy guard: a non-string, non-object second argument is still a timezone
+  // mistake, not an options object
+  if (typeof timezoneOrOptions !== 'string' &&
+      (typeof timezoneOrOptions !== 'object' || timezoneOrOptions === null)) {
+    throw Error("Timezone must be a string");
+  }
+  const timezone = options.timezone ?? 'Asia/Beijing';
+  const overlap: OverlapPolicy = options.overlap ?? 'skip';
+
+  if (overlap !== 'skip' && overlap !== 'queue' && overlap !== 'allow') {
+    throw Error(`Invalid overlap policy: ${overlap} (expected 'skip' | 'queue' | 'allow')`);
+  }
+
   // 参数验证
   if (Helper.isEmpty(cron)) {
     throw Error("Cron expression is required and cannot be empty");
@@ -69,7 +99,8 @@ export function Scheduled(cron: string, timezone = 'Asia/Beijing') {
         IOCContainer.attachClassMetadata(COMPONENT_SCHEDULED, DecoratorType.SCHEDULED, {
           method: methodName,
           cron,
-          timezone
+          timezone,
+          overlap
         }, this, methodName);
       });
 
@@ -98,7 +129,8 @@ export function Scheduled(cron: string, timezone = 'Asia/Beijing') {
       IOCContainer.attachClassMetadata(COMPONENT_SCHEDULED, DecoratorType.SCHEDULED, {
         method: methodName,
         cron,
-        timezone  // 保存确定的时区值
+        timezone,  // 保存确定的时区值
+        overlap    // COR-06
       }, target as object, methodName);
     }
   }, 'method');

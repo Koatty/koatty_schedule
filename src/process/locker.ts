@@ -12,8 +12,6 @@ import { IOCContainer } from "koatty_container";
 import { RedLocker, RedLockOptions } from "../locker/redlock";
 import { Helper } from "koatty_lib";
 import { DefaultLogger as logger } from "koatty_logger";
-import { Lock } from "@sesamecare-oss/redlock";
-import { timeoutPromise } from "../utils/lib";
 import { Koatty } from "koatty_core";
 import { RedLockMethodOptions, getEffectiveRedLockOptions } from "../config/config";
 
@@ -76,74 +74,69 @@ export function redLockerDescriptor(
   }
 
   /**
-   * Enhanced function wrapper with proper lock renewal and safety
+   * COR-05 (C-3): run the business method under a lock that is renewed in the
+   * background.
+   *
+   * The previous implementation raced the method against a timeout and, on
+   * timeout, extended the lock and **executed the business method again** — a
+   * non-idempotent job could therefore run twice. `Promise.race` cannot cancel a
+   * running promise, so the only safe model is: keep the lock alive (auto
+   * extension) and let the method run once. When the lock cannot be kept, the
+   * `AbortSignal` fires and the result is discarded (`signal.error`), never
+   * re-run.
    */
   const valueFunction = async (
     self: unknown,
-    initialLock: Lock,
     lockTime: number,
-    timeout: number,
+    maxHoldTime: number,
     props: unknown[]
   ): Promise<unknown> => {
-    let currentLock = initialLock;
-    let remainingTime = timeout;
-    const maxExtensions = 3; // 限制续期次数防止无限循环
-    let extensionCount = 0;
-    
-    try {
-      while (remainingTime > 0 && extensionCount < maxExtensions) {
-        // 创建可取消的超时 Promise
-        const timeoutHandler = timeoutPromise(remainingTime);
-        
+    const redlock = RedLocker.getInstance();
+    // COR-05: one resource per lock (the lock name); locking `[method, name]`
+    // doubled the Redis round trips without adding any guarantee.
+    const resource = name;
+    const startedAt = Date.now();
+
+    const result = await redlock.using(
+      [resource],
+      lockTime,
+      500,
+      async (signal: AbortSignal) => {
+        let holdExceeded = false;
+        const watchdog = setTimeout(() => {
+          holdExceeded = true;
+          logger.Error(
+            `Method ${method} has held the lock longer than maxHoldTime (${maxHoldTime}ms). ` +
+            `The lock is no longer guaranteed and the method will NOT be re-run.`
+          );
+        }, maxHoldTime);
+        // never keep the event loop alive just for this watchdog
+        (watchdog as { unref?: () => void }).unref?.();
+
         try {
-          // 执行业务方法，与超时竞争
-          const result = await Promise.race([
-            value.apply(self, props),
-            timeoutHandler
-          ]);
-          
-          // 成功执行，取消超时定时器防止内存泄漏
-          timeoutHandler.cancel();
-          return result;
-        } catch (error) {
-          // 无论什么错误，都要取消超时定时器
-          timeoutHandler.cancel();
-          
-          // 处理超时错误，尝试续期锁
-          if (error instanceof Error && error.message === 'TIME_OUT_ERROR') {
-            extensionCount++;
-            logger.Debug(`Method ${method} execution timeout, attempting lock extension ${extensionCount}/${maxExtensions}`);
-            
-            try {
-              // 续期锁，获得新的锁实例
-              currentLock = await currentLock.extend(lockTime);
-              remainingTime = lockTime - 200; // 预留200ms用于锁操作
-              logger.Debug(`Lock extended for method: ${method}, remaining time: ${remainingTime}ms`);
-              
-              // 继续循环，重新执行业务方法
-              continue;
-            } catch (extendError) {
-              logger.Error(`Failed to extend lock for method: ${method}`, extendError);
-              throw new Error(`Lock extension failed: ${extendError instanceof Error ? extendError.message : 'Unknown error'}`);
-            }
-          } else {
-            // 非超时错误，直接抛出
-            throw error;
+          // COR-05: the AbortSignal is handed to the business method so it can
+          // check it before doing writes; a strict-fencing need should use a
+          // fencing token.
+          const value2 = await value.apply(self, [...props, { signal }]);
+
+          if (signal.aborted) {
+            const abortError = (signal as AbortSignal & { error?: Error }).error;
+            throw abortError ?? new Error(`Lock lost while running ${method}: renewal failed`);
           }
+          if (holdExceeded) {
+            throw new Error(
+              `Method ${method} exceeded maxHoldTime (${maxHoldTime}ms); the result is not trustworthy`
+            );
+          }
+          return value2;
+        } finally {
+          clearTimeout(watchdog);
         }
       }
-      
-      // 达到最大续期次数或剩余时间不足
-      throw new Error(`Method ${method} execution timeout after ${extensionCount} lock extensions`);
-    } finally {
-      // 确保锁被释放
-      try {
-        await currentLock.release();
-        logger.Debug(`Lock released for method: ${method}`);
-      } catch (releaseError) {
-        logger.Warn(`Failed to release lock for method: ${method}`, releaseError);
-      }
-    }
+    );
+
+    logger.Debug(`Method ${method} finished under lock after ${Date.now() - startedAt}ms`);
+    return result;
   };
 
   return {
@@ -152,19 +145,17 @@ export function redLockerDescriptor(
     writable: true,
     async value(...props: unknown[]): Promise<unknown> {
       try {
-        const redlock = RedLocker.getInstance();
         const lockOptions = getEffectiveRedLockOptions(methodOptions);
-        // Acquire a lock.
         const lockTime = lockOptions.lockTimeOut || 10000;
         if (lockTime <= 200) {
           throw new Error("Lock timeout must be greater than 200ms to allow for proper execution");
         }
 
-        const lock = await redlock.acquire([method, name], lockTime);
-        const timeout = lockTime - 200;
+        // COR-05: bounded hold time; exceeding it stops trusting the result
+        const maxHoldTime = methodOptions?.maxHoldTime ?? lockTime * 10;
 
-        logger.Debug(`Lock acquired for method: ${method}, timeout: ${timeout}ms`);
-        return await valueFunction(this, lock, lockTime, timeout, props);
+        logger.Debug(`Acquiring lock for method: ${method}, ttl: ${lockTime}ms, maxHoldTime: ${maxHoldTime}ms`);
+        return await valueFunction(this, lockTime, maxHoldTime, props);
       } catch (error) {
         logger.Error(`RedLock operation failed for method: ${method}`, error);
         throw error;

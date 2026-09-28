@@ -28,6 +28,12 @@ export interface RedLockMethodOptions {
   clockDriftFactor?: number;   // Clock drift factor for lock timeout calculation
   maxRetries?: number;         // Maximum number of retry attempts
   retryDelayMs?: number;       // Delay between retry attempts in milliseconds
+  /**
+   * COR-05 (C-3): how long a method may hold the lock in total (default:
+   * lockTimeOut × 10). Once exceeded the auto-extension stops being trusted, an
+   * ERROR is logged and the result is discarded — the method is never re-run.
+   */
+  maxHoldTime?: number;
 }
 
 /**

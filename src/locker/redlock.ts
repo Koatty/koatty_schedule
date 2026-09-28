@@ -316,6 +316,67 @@ export class RedLocker implements IDistributedLock {
   }
 
   /**
+   * COR-05 (C-3): run `handler` while holding an automatically renewed lock.
+   *
+   * `@sesamecare-oss/redlock`'s `using()` keeps extending the lock in the
+   * background (extension happens strictly before the TTL expires) and hands an
+   * `AbortSignal` to the handler, so the business code can notice that the lock
+   * was lost instead of a `Promise.race` timeout that cannot cancel anything.
+   *
+   * @param resources - Single resource name to lock (the resource is prefixed)
+   * @param ttl - lock TTL in ms; the extension is scheduled before it expires
+   * @param automaticExtensionThreshold - renew this many ms before expiry
+   * @param handler - business code; receives the AbortSignal
+   */
+  async using<T>(
+    resources: string[],
+    ttl: number,
+    automaticExtensionThreshold: number,
+    handler: (signal: AbortSignal) => Promise<T>
+  ): Promise<T> {
+    if (!Array.isArray(resources) || resources.length === 0) {
+      throw new Error('Resources array cannot be empty');
+    }
+    if (ttl <= 0) {
+      throw new Error('Lock TTL must be positive');
+    }
+
+    await this.initialize();
+    if (!this.redlock) {
+      throw new Error('RedLock is not initialized');
+    }
+
+    const usingFn = (this.redlock as unknown as {
+      using?: (
+        resources: string[],
+        ttl: number,
+        settings: { automaticExtensionThreshold: number },
+        handler: (signal: AbortSignal) => Promise<T>
+      ) => Promise<T>;
+    }).using;
+
+    if (typeof usingFn !== 'function') {
+      throw new Error('Automatic lock extension is not supported by this redlock version');
+    }
+
+    const prefixedResources = resources.map(resource =>
+      `${this.config.redisConfig.keyPrefix}${resource}`
+    );
+
+    try {
+      return await usingFn.call(this.redlock, prefixedResources, ttl, {
+        automaticExtensionThreshold
+      }, handler);
+    } catch (error) {
+      logger.Error(`Failed to run with lock for resources: ${resources.join(', ')}`, error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(`Lock usage failed: Unknown error`);
+    }
+  }
+
+  /**
    * Release a lock
    * @param lock - Lock instance to release
    */

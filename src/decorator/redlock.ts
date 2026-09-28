@@ -9,6 +9,7 @@
  */
 
 import { IOCContainer } from "koatty_container";
+import { DefaultLogger as logger } from "koatty_logger";
 import { RedLockMethodOptions, validateRedLockMethodOptions } from "../config/config";
 import { redLockerDescriptor, generateLockName } from "../process/locker";
 
@@ -65,8 +66,6 @@ export function RedLock(lockName?: string, options?: RedLockMethodOptions) {
         try {
           const { RedLocker } = await import("../locker/redlock");
           const { getEffectiveRedLockOptions } = await import("../config/config");
-          const { timeoutPromise } = await import("../utils/lib");
-          const { Lock } = await import("@sesamecare-oss/redlock");
 
           const resolvedLockName = lockName || generateLockName(lockName, methodName, Object.getPrototypeOf(this));
 
@@ -77,24 +76,42 @@ export function RedLock(lockName?: string, options?: RedLockMethodOptions) {
             throw new Error("Lock timeout must be greater than 200ms to allow for proper execution");
           }
 
-          const lock = await redlock.acquire([methodName, resolvedLockName], lockTime);
-          const timeout = lockTime - 200;
+          // COR-05: bounded hold time; the lock is renewed in the background and
+          // the method runs exactly once (no timeout-triggered re-run).
+          const maxHoldTime = options?.maxHoldTime ?? lockTime * 10;
 
-          try {
-            const result = await Promise.race([
-              originalMethod.apply(this, props),
-              timeoutPromise(timeout)
-            ]);
-            return result;
-          } catch (error) {
-            throw error;
-          } finally {
-            try {
-              await lock.release();
-            } catch (releaseError) {
-              // Ignore release errors
+          return await redlock.using(
+            [resolvedLockName],
+            lockTime,
+            500,
+            async (signal: AbortSignal) => {
+              let holdExceeded = false;
+              const watchdog = setTimeout(() => {
+                holdExceeded = true;
+                logger.Error(
+                  `Method ${methodName} has held the lock longer than maxHoldTime (${maxHoldTime}ms). ` +
+                  `The lock is no longer guaranteed and the method will NOT be re-run.`
+                );
+              }, maxHoldTime);
+              (watchdog as { unref?: () => void }).unref?.();
+
+              try {
+                const result = await originalMethod.apply(this, [...props, { signal }]);
+                if (signal.aborted) {
+                  const abortError = (signal as AbortSignal & { error?: Error }).error;
+                  throw abortError ?? new Error(`Lock lost while running ${methodName}: renewal failed`);
+                }
+                if (holdExceeded) {
+                  throw new Error(
+                    `Method ${methodName} exceeded maxHoldTime (${maxHoldTime}ms); the result is not trustworthy`
+                  );
+                }
+                return result;
+              } finally {
+                clearTimeout(watchdog);
+              }
             }
-          }
+          );
         } catch (error) {
           throw error;
         }
