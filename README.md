@@ -9,6 +9,7 @@ Powerful scheduled tasks and distributed locking solution for Koatty framework.
 ## Features
 
 - 🕒 **Flexible Scheduling**: Support for cron expressions with timezone configuration
+- 🛡️ **Cooperative Cancellation (7.0)**: RedLock renewal is bounded with cooperative cancellation (no unbounded renewal chains), and scheduler shutdown awaits in-flight task drain before exiting
 - 🔐 **Distributed Locking**: RedLock-based distributed locks with auto-extension
 - 🏗️ **Plugin Architecture**: Native Koatty plugin integration 
 - ⚡ **Performance Optimized**: Singleton pattern, caching, and memory-leak-free design
